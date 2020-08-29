@@ -140,7 +140,7 @@ export class TestSuite<T> {
   /** The name of the test suite will be prepended to the names of tests in the suite. */
   private name: string;
   /** The context for tests within the suite. */
-  private context: T;
+  private context: Partial<T>;
   /**
    * The parent test suite that the test suite belongs to.
    * Any option that is not specified will be inherited from the parent test suite.
@@ -223,11 +223,11 @@ export class TestSuite<T> {
         await this.suite.beforeAll();
         this.context = { ...this.suite.context, ...this.context };
       }
-      if (options.beforeAll) await options.beforeAll(this.context);
+      if (options.beforeAll) await options.beforeAll(this.context as T);
       this.started = true;
     };
     this.afterAll = async () => {
-      if (options.afterAll) await options.afterAll(this.context);
+      if (options.afterAll) await options.afterAll(this.context as T);
       if (this.suite && this.suite.last === this.last) {
         await this.suite.afterAll();
       }

@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "deno run",
+      "type": "pwa-node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": ["run", "--inspect-brk", "${file}"],
+      "attachSimplePort": 9229
+    },
+    {
+      "name": "deno test",
+      "type": "pwa-node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": ["test", "--inspect-brk", "${file}"],
+      "attachSimplePort": 9229
+    }
+  ]
+}

@@ -409,7 +409,7 @@ Deno.test("top level suite test hooks single context empty", async () => {
     assertEquals(beforeAllHook.calls.length, 1);
     assertEquals(beforeEachHook.calls.length, 2);
     assertEquals(afterEachHook.calls.length, 2);
-    delete context.a;
+    context.a = 0;
   });
   const testSpys: Spy<void>[] = [
     spy((context: Context) => {
@@ -520,7 +520,7 @@ Deno.test("top level suite test hooks single context populated", async () => {
     assertEquals(beforeAllHook.calls.length, 1);
     assertEquals(beforeEachHook.calls.length, 2);
     assertEquals(afterEachHook.calls.length, 2);
-    delete context.a;
+    context.a = 0;
   });
   const testSpys: Spy<void>[] = [
     spy((context: Context) => {
@@ -635,7 +635,7 @@ Deno.test("top level suite test async hooks single context empty", async () => {
     assertEquals(beforeEachHook.calls.length, 2);
     assertEquals(afterEachHook.calls.length, 2);
     await delay(1);
-    delete context.a;
+    context.a = 0;
   });
   const testSpys: Spy<void>[] = [
     spy((context: Context) => {
@@ -750,7 +750,7 @@ Deno.test("top level suite test async hooks single context populated", async () 
     assertEquals(beforeEachHook.calls.length, 2);
     assertEquals(afterEachHook.calls.length, 2);
     await delay(1);
-    delete context.a;
+    context.a = 0;
   });
   const testSpys: Spy<void>[] = [
     spy((context: Context) => {
