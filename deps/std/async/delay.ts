@@ -1,1 +1,1 @@
-export { delay } from "https://deno.land/std@0.68.0/async/delay.ts";
+export { delay } from "https://deno.land/std@0.69.0/async/delay.ts";
