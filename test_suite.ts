@@ -13,7 +13,7 @@ export interface TestDefinition<T> {
    * The test suite that the test belongs to.
    * Any option that is not specified will be inherited from the test suite.
    */
-  suite?: TestSuite<T>;
+  suite?: TestSuite<T> | TestSuite<Partial<T>> | TestSuite<void>;
   /** Ignore test if set to true. */
   ignore?: boolean;
   /**
@@ -42,7 +42,7 @@ export interface TestSuiteDefinition<T> {
    * The parent test suite that the test suite belongs to.
    * Any option that is not specified will be inherited from the parent test suite.
    */
-  suite?: TestSuite<T> | TestSuite<Partial<T>>;
+  suite?: TestSuite<T> | TestSuite<Partial<T>> | TestSuite<void>;
   /** Ignore all tests in suite if set to true. */
   ignore?: boolean;
   /**
@@ -140,7 +140,7 @@ export class TestSuite<T> {
   /** The name of the test suite will be prepended to the names of tests in the suite. */
   private name: string;
   /** The context for tests within the suite. */
-  private context: Partial<T>;
+  private context?: Partial<T>;
   /**
    * The parent test suite that the test suite belongs to.
    * Any option that is not specified will be inherited from the parent test suite.
@@ -188,9 +188,9 @@ export class TestSuite<T> {
       throw new TypeError("name cannot start or end with a space");
     }
     if (globalSuite) {
-      this.suite = options.suite ?? globalSuite;
+      this.suite = (options.suite ?? globalSuite) as TestSuite<T>;
     } else if (options.suite) {
-      this.suite = options.suite;
+      this.suite = options.suite as TestSuite<T>;
     }
     if (this.suite && this.suite.locked) {
       throw new Error("cannot add to test suite starting another test suite");
@@ -258,7 +258,7 @@ export class TestSuite<T> {
       | ((context: T) => Promise<void>),
   ): void;
   static test<T>(
-    suite: TestSuite<T>,
+    suite: TestSuite<T> | TestSuite<Partial<T>> | TestSuite<void>,
     name: string,
     fn:
       | (() => void)
@@ -268,7 +268,12 @@ export class TestSuite<T> {
   ): void;
   static test<T>(options: TestDefinition<T>): void;
   static test<T>(
-    a: string | TestDefinition<T> | TestSuite<T>,
+    a:
+      | string
+      | TestDefinition<T>
+      | TestSuite<T>
+      | TestSuite<Partial<T>>
+      | TestSuite<void>,
     b?:
       | string
       | (() => void)
@@ -292,7 +297,7 @@ export class TestSuite<T> {
           name: b as string,
           fn: c as (this: T) => (void | Promise<void>),
         };
-    const suite: TestSuite<T> = options.suite ?? globalSuite!;
+    const suite: TestSuite<T> = (options.suite ?? globalSuite!) as TestSuite<T>;
     if (suite.locked) {
       throw new Error("cannot add to test suite starting another test suite");
     }
