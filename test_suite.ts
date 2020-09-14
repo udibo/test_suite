@@ -42,7 +42,7 @@ export interface TestSuiteDefinition<T> {
    * The parent test suite that the test suite belongs to.
    * Any option that is not specified will be inherited from the parent test suite.
    */
-  suite?: TestSuite<T>;
+  suite?: TestSuite<T> | TestSuite<Partial<T>>;
   /** Ignore all tests in suite if set to true. */
   ignore?: boolean;
   /**

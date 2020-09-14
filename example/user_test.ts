@@ -20,7 +20,11 @@ test(userSuite, "create", () => {
   assertEquals(user.name, "John Doe");
 });
 
-const getUserSuite: TestSuite<UserSuiteContext> = new TestSuite({
+interface GetUserSuiteContext extends UserSuiteContext {
+  value?: number;
+}
+
+const getUserSuite: TestSuite<GetUserSuiteContext> = new TestSuite({
   name: "getUser",
   suite: userSuite,
 });
