@@ -189,15 +189,15 @@ export class TestSuite<T> {
     }
     if (globalSuite) {
       this.suite = (options.suite ?? globalSuite) as TestSuite<T>;
-    } else if (options.suite) {
-      this.suite = options.suite as TestSuite<T>;
     }
     if (this.suite && this.suite.locked) {
-      throw new Error("cannot add to test suite starting another test suite");
+      throw new Error(
+        "cannot add child test suite after starting another test suite",
+      );
     }
     this.name = (this.suite && this.suite.name ? `${this.suite.name} ` : "") +
       options.name;
-    if (suiteNames.has(this.name)) throw new Error("suite name alread used");
+    if (suiteNames.has(this.name)) throw new Error("suite name already used");
     suiteNames.add(this.name);
 
     if (!suites.isEmpty()) {
@@ -299,7 +299,7 @@ export class TestSuite<T> {
         };
     const suite: TestSuite<T> = (options.suite ?? globalSuite!) as TestSuite<T>;
     if (suite.locked) {
-      throw new Error("cannot add to test suite starting another test suite");
+      throw new Error("cannot add test after starting another test suite");
     }
 
     let name: string = options.name;

@@ -1,6 +1,6 @@
-import { assertEquals } from "./deps/std/testing/asserts.ts";
+import { assertEquals, assertThrows } from "./deps/std/testing/asserts.ts";
 import { spy, Spy, stub, Stub, SpyCall } from "./deps/udibo/mock/mod.ts";
-import { TestSuite, test } from "./test_suite.ts";
+import { TestSuite, test, TestDefinition } from "./test_suite.ts";
 import { delay } from "./deps/std/async/delay.ts";
 
 function testDefinition(
@@ -1112,6 +1112,129 @@ Deno.test("multi level suite tests with options", async () => {
     await registerTestStub.calls[5].args[0].fn();
     assertEquals(testSpys[5].calls.length, 1);
     assertEquals(testSpys[5].calls[0].args, [{}]);
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("tests require valid name", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+
+  try {
+    TestSuite.reset();
+    assertThrows(
+      () => test(5 as unknown as string, () => {}),
+      TypeError,
+      "name must be a string",
+    );
+    assertThrows(() => test("", () => {}), TypeError, "name cannot be empty");
+    assertThrows(
+      () => test(" example", () => {}),
+      TypeError,
+      "name cannot start or end with a space",
+    );
+    assertThrows(
+      () => test("example ", () => {}),
+      TypeError,
+      "name cannot start or end with a space",
+    );
+    test("example", () => {});
+    assertThrows(
+      () => test("example", () => {}),
+      Error,
+      "test name already used",
+    );
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("tests require function", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+
+  try {
+    TestSuite.reset();
+    assertThrows(
+      () => test("no fn argument", null as unknown as (() => void)),
+      TypeError,
+      "fn argument or option missing",
+    );
+    assertThrows(
+      () => test({ name: "no fn option" } as unknown as TestDefinition<void>),
+      Error,
+      "fn argument or option missing",
+    );
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("test suites require valid name", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+
+  try {
+    TestSuite.reset();
+    assertThrows(
+      () => new TestSuite({ name: 5 as unknown as string }),
+      TypeError,
+      "name must be a string",
+    );
+    assertThrows(
+      () => new TestSuite({ name: "" }),
+      TypeError,
+      "name cannot be empty",
+    );
+    assertThrows(
+      () => new TestSuite({ name: " example" }),
+      TypeError,
+      "name cannot start or end with a space",
+    );
+    assertThrows(
+      () => new TestSuite({ name: "example " }),
+      TypeError,
+      "name cannot start or end with a space",
+    );
+    const exampleTests = new TestSuite({ name: "example" });
+    assertThrows(
+      () => new TestSuite({ name: "example" }),
+      Error,
+      "suite name already used",
+    );
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("test suites cannot be modified after another test suite starts", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+
+  try {
+    TestSuite.reset();
+    const exampleTests = new TestSuite({ name: "example1" });
+    new TestSuite({ name: "child1" });
+    new TestSuite({ name: "example2" });
+    assertThrows(
+      () => test({ name: "test", suite: exampleTests, fn() {} }),
+      Error,
+      "cannot add test after starting another test suite",
+    );
+    assertThrows(
+      () => new TestSuite({ name: "child2", suite: exampleTests }),
+      Error,
+      "cannot add child test suite after starting another test suite",
+    );
   } finally {
     registerTestStub.restore();
   }
