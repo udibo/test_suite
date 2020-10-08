@@ -1,8 +1,2 @@
-export {
-  TestSuite,
-  test,
-} from "./test_suite.ts";
-export type {
-  TestSuiteDefinition,
-  TestDefinition,
-} from "./test_suite.ts";
+export { test, TestSuite } from "./test_suite.ts";
+export type { TestDefinition, TestSuiteDefinition } from "./test_suite.ts";

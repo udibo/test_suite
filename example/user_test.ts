@@ -1,6 +1,6 @@
-import { TestSuite, test } from "../mod.ts";
+import { test, TestSuite } from "../mod.ts";
 import { assertEquals } from "../deps/std/testing/asserts.ts";
-import { User, getUser, resetUsers } from "./user.ts";
+import { getUser, resetUsers, User } from "./user.ts";
 
 interface UserContext {
   user: User;

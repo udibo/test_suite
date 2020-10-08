@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "./deps/std/testing/asserts.ts";
-import { spy, Spy, stub, Stub, SpyCall } from "./deps/udibo/mock/mod.ts";
-import { TestSuite, test, TestDefinition } from "./test_suite.ts";
+import { Spy, spy, SpyCall, Stub, stub } from "./deps/udibo/mock/mod.ts";
+import { test, TestDefinition, TestSuite } from "./test_suite.ts";
 import { delay } from "./deps/std/async/delay.ts";
 
 function testDefinition(
