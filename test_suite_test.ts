@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "./deps/std/testing/asserts.ts";
-import { Spy, spy, SpyCall, Stub, stub } from "./deps/udibo/mock/mod.ts";
+import { Spy, spy, Stub, stub } from "./deps/udibo/mock/mod.ts";
 import { test, TestDefinition, TestSuite } from "./test_suite.ts";
 import { delay } from "./deps/std/async/delay.ts";
 
