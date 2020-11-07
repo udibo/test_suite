@@ -3,7 +3,7 @@
 [![version](https://img.shields.io/badge/release-v0.6.1-success)](https://github.com/udibo/test_suite/tree/v0.6.1)
 [![deno doc](https://img.shields.io/badge/deno-doc-success?logo=deno)](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.1/mod.ts)
 [![deno version](https://img.shields.io/badge/deno-v1.5.1-success?logo=deno)](https://github.com/denoland/deno/tree/v1.5.1)
-[![CI](https://github.com/udibo/mock/workflows/CI/badge.svg)](https://github.com/udibo/test_suite/actions?query=workflow%3ACI)
+[![CI](https://github.com/udibo/test_suite/workflows/CI/badge.svg)](https://github.com/udibo/test_suite/actions?query=workflow%3ACI)
 [![license](https://img.shields.io/github/license/udibo/test_suite)](https://github.com/udibo/test_suite/blob/master/LICENSE)
 
 This module extends Deno's built-in test runner to add setup/teardown hooks
