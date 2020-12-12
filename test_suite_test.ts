@@ -397,7 +397,7 @@ Deno.test("top level suite test hooks single context empty", async () => {
     context.a *= 4;
     context.b = "example";
   });
-  let expectedBeforeEachCalls: number = 1;
+  let expectedBeforeEachCalls = 1;
   const afterEachHook: Spy<void> = spy((context: Context) => {
     assertEquals(context, { a: 12, b: "example" });
     assertEquals(beforeAllHook.calls.length, 1);
@@ -508,7 +508,7 @@ Deno.test("top level suite test hooks single context populated", async () => {
     context.a *= 4;
     context.b = "example";
   });
-  let expectedBeforeEachCalls: number = 1;
+  let expectedBeforeEachCalls = 1;
   const afterEachHook: Spy<void> = spy((context: Context) => {
     assertEquals(context, { a: 12, b: "example", c: 5 });
     assertEquals(beforeAllHook.calls.length, 1);
@@ -621,7 +621,7 @@ Deno.test("top level suite test async hooks single context empty", async () => {
     context.a *= 4;
     context.b = "example";
   });
-  let expectedBeforeEachCalls: number = 1;
+  let expectedBeforeEachCalls = 1;
   const afterEachHook: Spy<void> = spy(async (context: Context) => {
     assertEquals(context, { a: 12, b: "example" });
     assertEquals(beforeAllHook.calls.length, 1);
@@ -736,7 +736,7 @@ Deno.test("top level suite test async hooks single context populated", async () 
     context.a *= 4;
     context.b = "example";
   });
-  let expectedBeforeEachCalls: number = 1;
+  let expectedBeforeEachCalls = 1;
   const afterEachHook: Spy<void> = spy(async (context: Context) => {
     assertEquals(context, { a: 12, b: "example", c: 5 });
     assertEquals(beforeAllHook.calls.length, 1);
