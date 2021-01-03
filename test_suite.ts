@@ -1,3 +1,5 @@
+import { delay } from "./deps/std/async/delay.ts";
+import { assertEquals } from "./deps/std/testing/asserts.ts";
 import { Vector } from "./deps/udibo/collections/vector.ts";
 
 export interface TestDefinition<T> {
@@ -94,14 +96,71 @@ const testNames: Set<string> = new Set();
 let initialized = false;
 let started = false;
 
+type TestType = "suite" | "case";
+
+async function getMetrics(): Promise<Deno.Metrics> {
+  // Defer until next event loop turn - that way timeouts and intervals
+  // cleared can actually be removed from resource table, otherwise
+  // false positives may occur (https://github.com/denoland/deno/issues/4591)
+  await delay(0);
+  return Deno.metrics();
+}
+
+async function assertOps(testType: TestType, beforeMetrics: Deno.Metrics) {
+  const afterMetrics: Deno.Metrics = await getMetrics();
+  const dispatchedDiff: number = afterMetrics.opsDispatchedAsync -
+    beforeMetrics.opsDispatchedAsync;
+  const completedDiff: number = afterMetrics.opsCompletedAsync -
+    beforeMetrics.opsCompletedAsync;
+
+  assertEquals(
+    dispatchedDiff,
+    completedDiff,
+    `Test ${testType} is leaking async ops.
+Before:
+- dispatched: ${beforeMetrics.opsDispatchedAsync}
+- completed: ${beforeMetrics.opsCompletedAsync}
+After:
+- dispatched: ${afterMetrics.opsDispatchedAsync}
+- completed: ${afterMetrics.opsCompletedAsync}
+Make sure to await all promises returned from Deno APIs before
+finishing test ${testType}.`,
+  );
+}
+
+function assertResources(
+  testType: TestType,
+  beforeResources: Deno.ResourceMap,
+) {
+  const afterResources: Deno.ResourceMap = Deno.resources();
+  const preStr = JSON.stringify(beforeResources, null, 2);
+  const postStr = JSON.stringify(afterResources, null, 2);
+  assertEquals(
+    preStr,
+    postStr,
+    `Test ${testType} is leaking resources.
+Before: ${preStr}
+After: ${postStr}
+Make sure to close all open resource handles returned from Deno APIs before
+finishing test ${testType}.`,
+  );
+}
+
 /**
  * A group of tests. A test suite can include child test suites.
  * The name of the test suite is prepended to the name of each test within it.
  * Tests belonging to a suite will inherit options from it.
  */
 export class TestSuite<T> {
-  /** The function used to register tests. Defaults to `Deno.test`. */
-  static registerTest: (options: Deno.TestDefinition) => void = Deno.test;
+  /** The function used to register tests. Defaults to using `Deno.test`. */
+  static registerTest(options: Deno.TestDefinition): void {
+    Deno.test({
+      ...options,
+      // Sanitize ops and resources is handled by the TestSuite.
+      sanitizeOps: false,
+      sanitizeResources: false,
+    });
+  }
   /**
    * Initializes global test suite. This should not be used in your tests.
    * This is used internally and for testing the test suite module.
@@ -154,12 +213,12 @@ export class TestSuite<T> {
    */
   private only?: boolean;
   /**
-   * Check that the number of async completed ops after each test in the suite
+   * Check that the number of async completed ops after the suite and each test in the suite
    * is the same as the number of dispatched ops. Defaults to true.
    */
   private sanitizeOps?: boolean;
   /**
-   * Ensure the test cases in the suite do not "leak" resources - ie. the resource table
+   * Ensure the suite and test cases in the suite do not "leak" resources - ie. the resource table
    * after each test has exactly the same contents as before each test. Defaults to true.
    */
   private sanitizeResources?: boolean;
@@ -167,6 +226,8 @@ export class TestSuite<T> {
   private last?: string;
   private started: boolean;
   private locked: boolean;
+  private beforeAllMetrics?: Deno.Metrics;
+  private beforeAllResources?: Deno.ResourceMap;
 
   /** Run some shared setup before all of the tests in the suite. */
   private beforeAll: () => Promise<void>;
@@ -219,6 +280,12 @@ export class TestSuite<T> {
       this.suite?.sanitizeResources;
 
     this.beforeAll = async () => {
+      if (this.sanitizeOps ?? true) {
+        this.beforeAllMetrics = await getMetrics();
+      }
+      if (this.sanitizeResources ?? true) {
+        this.beforeAllResources = Deno.resources();
+      }
       if (this.suite) {
         await this.suite.beforeAll();
         this.context = { ...this.suite.context, ...this.context };
@@ -230,6 +297,12 @@ export class TestSuite<T> {
       if (options.afterAll) await options.afterAll(this.context as T);
       if (this.suite && this.suite.last === this.last) {
         await this.suite.afterAll();
+      }
+      if (this.sanitizeOps ?? true) {
+        await assertOps("suite", this.beforeAllMetrics!);
+      }
+      if (this.sanitizeResources ?? true) {
+        assertResources("suite", this.beforeAllResources!);
       }
     };
     this.beforeEach = async (context: T) => {
@@ -330,22 +403,45 @@ export class TestSuite<T> {
       }
     }
 
+    const sanitizeOps: boolean = options.sanitizeOps ??
+      suite.sanitizeOps ?? true;
+    const sanitizeResources: boolean = options.sanitizeResources ??
+      suite.sanitizeResources ?? true;
+
     suite.last = name;
     const test: Deno.TestDefinition = {
       name,
       fn: async () => {
         if (!suite.started) await suite.beforeAll();
         const context: T = { ...suite.context } as T;
+        let beforeMetrics: Deno.Metrics | null = null;
+        let beforeResources: Deno.ResourceMap | null = null;
+        let firstError: Error | null = null;
+
         try {
+          if (sanitizeOps) beforeMetrics = await getMetrics();
+          if (sanitizeResources) beforeResources = Deno.resources();
           await suite.beforeEach(context);
           await fn(context);
-        } finally {
-          try {
-            await suite.afterEach(context);
-          } finally {
-            if (suite.last === name) await suite.afterAll();
-          }
+        } catch (error) {
+          firstError = error;
         }
+
+        try {
+          await suite.afterEach(context);
+          if (sanitizeOps) await assertOps("case", beforeMetrics!);
+          if (sanitizeResources) assertResources("case", beforeResources!);
+        } catch (error) {
+          if (!firstError) firstError = error;
+        }
+
+        try {
+          if (suite.last === name) await suite.afterAll();
+        } catch (error) {
+          if (!firstError) firstError = error;
+        }
+
+        if (firstError) throw firstError;
       },
     };
 
@@ -367,6 +463,10 @@ export class TestSuite<T> {
       test.sanitizeResources = suite.sanitizeResources;
     }
 
+    // tests should go onto a queue that drains
+    // once another test suite or test is created outside of suite
+    // need first and last test to have async ops disabled
+    // might be easier to disable for all of them and do all sanitizing in here
     TestSuite.registerTest(test);
   }
 }

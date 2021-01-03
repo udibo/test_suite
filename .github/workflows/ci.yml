@@ -22,7 +22,7 @@ jobs:
       - name: Install deno
         uses: denolib/setup-deno@master
         with:
-          deno-version: 1.6.0
+          deno-version: 1.6.3
       - name: Check formatting
         if: matrix.config.kind == 'lint'
         run: |
@@ -31,8 +31,8 @@ jobs:
       - name: Test
         if: matrix.config.kind == 'test'
         run: |
-          deno test
-          deno test --coverage --unstable
+          deno test --allow-read
+          deno test --allow-read --coverage --unstable
       - name: Release info
         if: |
           matrix.config.kind == 'test' &&

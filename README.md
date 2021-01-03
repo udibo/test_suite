@@ -1,8 +1,8 @@
 # Test Suite
 
-[![version](https://img.shields.io/badge/release-v0.6.3-success)](https://github.com/udibo/test_suite/tree/v0.6.3)
-[![deno doc](https://img.shields.io/badge/deno-doc-success?logo=deno)](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.3/mod.ts)
-[![deno version](https://img.shields.io/badge/deno-v1.6.0-success?logo=deno)](https://github.com/denoland/deno/tree/v1.6.0)
+[![version](https://img.shields.io/badge/release-v0.6.4-success)](https://github.com/udibo/test_suite/tree/v0.6.4)
+[![deno doc](https://img.shields.io/badge/deno-doc-success?logo=deno)](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.4/mod.ts)
+[![deno version](https://img.shields.io/badge/deno-v1.6.3-success?logo=deno)](https://github.com/denoland/deno/tree/v1.6.3)
 [![CI](https://github.com/udibo/test_suite/workflows/CI/badge.svg)](https://github.com/udibo/test_suite/actions?query=workflow%3ACI)
 [![license](https://img.shields.io/github/license/udibo/test_suite)](https://github.com/udibo/test_suite/blob/master/LICENSE)
 
@@ -23,16 +23,16 @@ but can also be imported directly from GitHub using raw content URLs.
 
 ```ts
 // Import from Deno's third party module registry
-import { TestSuite, test } from "https://deno.land/x/test_suite@v0.6.3/mod.ts";
+import { TestSuite, test } from "https://deno.land/x/test_suite@v0.6.4/mod.ts";
 // Import from GitHub
-import { TestSuite, test } "https://raw.githubusercontent.com/udibo/test_suite/v0.6.3/mod.ts";
+import { TestSuite, test } "https://raw.githubusercontent.com/udibo/test_suite/v0.6.4/mod.ts";
 ```
 
 ## Usage
 
 Below are some examples of how to use TestSuite and test in tests.
 
-See [deno docs](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.3/mod.ts) for more information.
+See [deno docs](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.4/mod.ts) for more information.
 
 ### TestSuite
 
@@ -47,8 +47,8 @@ The beforeEach and afterEach hook options are similar to beforeAll and afterAll 
 The example test below can be found in the example directory.
 
 ```ts
-import { TestSuite, test } from "https://deno.land/x/test_suite@v0.6.3/mod.ts";
-import { assertEquals } from "https://deno.land/std@0.80.0/testing/asserts.ts";
+import { TestSuite, test } from "https://deno.land/x/test_suite@v0.6.4/mod.ts";
+import { assertEquals } from "https://deno.land/std@0.83.0/testing/asserts.ts";
 import { User, getUser, resetUsers } from "./example/user.ts";
 
 interface UserSuiteContext {
