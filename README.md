@@ -2,24 +2,25 @@
 
 [![version](https://img.shields.io/badge/release-v0.6.4-success)](https://github.com/udibo/test_suite/tree/v0.6.4)
 [![deno doc](https://img.shields.io/badge/deno-doc-success?logo=deno)](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.4/mod.ts)
-[![deno version](https://img.shields.io/badge/deno-v1.6.3-success?logo=deno)](https://github.com/denoland/deno/tree/v1.6.3)
+[![deno version](https://img.shields.io/badge/deno-v1.7.0-success?logo=deno)](https://github.com/denoland/deno/tree/v1.7.0)
 [![CI](https://github.com/udibo/test_suite/workflows/CI/badge.svg)](https://github.com/udibo/test_suite/actions?query=workflow%3ACI)
 [![license](https://img.shields.io/github/license/udibo/test_suite)](https://github.com/udibo/test_suite/blob/master/LICENSE)
 
-This module extends Deno's built-in test runner to add setup/teardown hooks
-and the ability to organize tests.
+This module extends Deno's built-in test runner to add setup/teardown hooks and
+the ability to organize tests.
 
 ## Features
 
 - Ability to group tests together into test suites
-- Setup/teardown hooks for test suites(beforeAll, afterAll, beforeEach, afterEach)
+- Setup/teardown hooks for test suites(beforeAll, afterAll, beforeEach,
+  afterEach)
 - Tests within a test suite inherit configuration options
 
 ## Installation
 
-To include this module in a Deno project, you can import directly from the TS files.
-This module is available in Deno's third part module registry
-but can also be imported directly from GitHub using raw content URLs.
+To include this module in a Deno project, you can import directly from the TS
+files. This module is available in Deno's third part module registry but can
+also be imported directly from GitHub using raw content URLs.
 
 ```ts
 // Import from Deno's third party module registry
@@ -32,24 +33,31 @@ import { TestSuite, test } "https://raw.githubusercontent.com/udibo/test_suite/v
 
 Below are some examples of how to use TestSuite and test in tests.
 
-See [deno docs](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.4/mod.ts) for more information.
+See
+[deno docs](https://doc.deno.land/https/deno.land/x/test_suite@v0.6.4/mod.ts)
+for more information.
 
 ### TestSuite
 
-When you have a set of tests that are related, you can group them together by creating a test suite.
-A test suite can contain other test suites and tests.
-All tests within a suite will inherit their options from the suite unless they specifically set them.
+When you have a set of tests that are related, you can group them together by
+creating a test suite. A test suite can contain other test suites and tests. All
+tests within a suite will inherit their options from the suite unless they
+specifically set them.
 
-The beforeAll and afterAll hook options can be used to do something before and after all the tests in the suite run. If you would like to set values for all tests within the suite, you can create a context interface that defines all the values available to the tests that are defined in the beforeAll function.
+The beforeAll and afterAll hook options can be used to do something before and
+after all the tests in the suite run. If you would like to set values for all
+tests within the suite, you can create a context interface that defines all the
+values available to the tests that are defined in the beforeAll function.
 
-The beforeEach and afterEach hook options are similar to beforeAll and afterAll except they are called before and after each individual test.
+The beforeEach and afterEach hook options are similar to beforeAll and afterAll
+except they are called before and after each individual test.
 
 The example test below can be found in the example directory.
 
 ```ts
-import { TestSuite, test } from "https://deno.land/x/test_suite@v0.6.4/mod.ts";
+import { test, TestSuite } from "https://deno.land/x/test_suite@v0.6.4/mod.ts";
 import { assertEquals } from "https://deno.land/std@0.83.0/testing/asserts.ts";
-import { User, getUser, resetUsers } from "./example/user.ts";
+import { getUser, resetUsers, User } from "./example/user.ts";
 
 interface UserSuiteContext {
   user: User;
