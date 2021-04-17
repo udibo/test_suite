@@ -2072,7 +2072,7 @@ Deno.test("test suites require valid name", () => {
       TypeError,
       "name cannot start or end with a space",
     );
-    const exampleTests = new TestSuite({ name: "example" });
+    new TestSuite({ name: "example" });
     assertThrows(
       () => new TestSuite({ name: "example" }),
       Error,
