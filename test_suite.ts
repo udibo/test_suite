@@ -88,6 +88,33 @@ export interface TestSuiteDefinition<T> {
     | ((context: T) => Promise<void>);
 }
 
+export interface SuiteHooks<T> {
+  /** Run some shared setup before each test in the suite. */
+  beforeEach?:
+    | (() => void)
+    | (() => Promise<void>)
+    | ((context: T) => void)
+    | ((context: T) => Promise<void>);
+  /** Run some shared teardown after each test in the suite. */
+  afterEach?:
+    | (() => void)
+    | (() => Promise<void>)
+    | ((context: T) => void)
+    | ((context: T) => Promise<void>);
+  /** Run some shared setup before all of the tests in the suite. */
+  beforeAll?:
+    | (() => void)
+    | (() => Promise<void>)
+    | ((context: T) => void)
+    | ((context: T) => Promise<void>);
+  /** Run some shared teardown after all of the tests in the suite. */
+  afterAll?:
+    | (() => void)
+    | (() => Promise<void>)
+    | ((context: T) => void)
+    | ((context: T) => Promise<void>);
+}
+
 // deno-lint-ignore no-explicit-any
 const suites: Vector<TestSuite<any>> = new Vector();
 const suiteNames: Set<string> = new Set();
@@ -161,6 +188,7 @@ export class TestSuite<T> {
       sanitizeResources: false,
     });
   }
+
   /**
    * Initializes global test suite. This should not be used in your tests.
    * This is used internally and for testing the test suite module.
@@ -237,6 +265,7 @@ export class TestSuite<T> {
   private beforeEach: (context: T) => Promise<void>;
   /** Run some shared teardown after each test in the suite. */
   private afterEach: (context: T) => Promise<void>;
+  private hooks: SuiteHooks<T>;
 
   constructor(private options: TestSuiteDefinition<T>) {
     if (typeof options.name !== "string") {
@@ -279,6 +308,8 @@ export class TestSuite<T> {
     this.sanitizeResources = options.sanitizeResources ??
       this.suite?.sanitizeResources;
 
+    this.hooks = {};
+    TestSuite.setHooks(this, options);
     this.beforeAll = async () => {
       if (this.sanitizeOps ?? true) {
         this.beforeAllMetrics = await getMetrics();
@@ -290,11 +321,11 @@ export class TestSuite<T> {
         await this.suite.beforeAll();
         this.context = { ...this.suite.context, ...this.context };
       }
-      if (options.beforeAll) await options.beforeAll(this.context as T);
+      if (this.hooks.beforeAll) await this.hooks.beforeAll(this.context as T);
       this.started = true;
     };
     this.afterAll = async () => {
-      if (options.afterAll) await options.afterAll(this.context as T);
+      if (this.hooks.afterAll) await this.hooks.afterAll(this.context as T);
       if (this.suite && this.suite.last === this.last) {
         await this.suite.afterAll();
       }
@@ -307,12 +338,13 @@ export class TestSuite<T> {
     };
     this.beforeEach = async (context: T) => {
       if (this.suite) await this.suite.beforeEach(context);
-      if (options.beforeEach) await options.beforeEach(context);
+      if (this.hooks.beforeEach) await this.hooks.beforeEach(context);
     };
     this.afterEach = async (context: T) => {
-      if (options.afterEach) await options.afterEach(context);
+      if (this.hooks.afterEach) await this.hooks.afterEach(context);
       if (this.suite) await this.suite.afterEach(context);
     };
+
     this.context = (options.context ?? {}) as T;
     this.started = false;
     this.locked = false;
@@ -468,6 +500,14 @@ export class TestSuite<T> {
     // need first and last test to have async ops disabled
     // might be easier to disable for all of them and do all sanitizing in here
     TestSuite.registerTest(test);
+  }
+
+  static setHooks<T>(suite: TestSuite<T>, hooks: SuiteHooks<T>): void {
+    if (started) throw new Error("cannot set hooks after test runner started");
+    if (hooks.beforeAll) suite.hooks.beforeAll = hooks.beforeAll;
+    if (hooks.afterAll) suite.hooks.afterAll = hooks.afterAll;
+    if (hooks.beforeEach) suite.hooks.beforeEach = hooks.beforeEach;
+    if (hooks.afterEach) suite.hooks.afterEach = hooks.afterEach;
   }
 }
 
