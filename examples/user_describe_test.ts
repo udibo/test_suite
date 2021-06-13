@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it } from "../mod.ts";
-import { assertEquals } from "../deps/std/testing/asserts.ts";
+import { assertEquals } from "../deps.ts";
 import { getUser, resetUsers, User } from "./user.ts";
 
 describe("user describe", () => {

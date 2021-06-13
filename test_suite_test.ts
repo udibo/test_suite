@@ -4,10 +4,10 @@ import {
   assertObjectMatch,
   assertThrows,
   assertThrowsAsync,
-} from "./deps/std/testing/asserts.ts";
-import { Spy, spy, Stub, stub } from "./deps/udibo/mock/mod.ts";
+  delay,
+} from "./deps.ts";
+import { Spy, spy, Stub, stub } from "./test_deps.ts";
 import { test, TestDefinition, TestSuite } from "./test_suite.ts";
-import { delay } from "./deps/std/async/delay.ts";
 
 function testDefinition(
   options: Deno.TestDefinition,
@@ -1411,7 +1411,7 @@ Deno.test("top level suite beforeAll/afterAll hooks leaking resources", async ()
     assertEquals(testSpys[1].calls.length, 1);
   } finally {
     registerTestStub.restore();
-    if (file) Deno.close(file!.rid);
+    if (file) Deno.close((file as Deno.File).rid);
   }
 });
 

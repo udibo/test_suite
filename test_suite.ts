@@ -1,6 +1,4 @@
-import { delay } from "./deps/std/async/delay.ts";
-import { assertEquals } from "./deps/std/testing/asserts.ts";
-import { Vector } from "./deps/udibo/collections/vector.ts";
+import { assertEquals, delay, Vector } from "./deps.ts";
 
 export interface TestDefinition<T> {
   /** The name of the test. */

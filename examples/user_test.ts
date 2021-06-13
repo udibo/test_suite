@@ -1,5 +1,5 @@
 import { test, TestSuite } from "../mod.ts";
-import { assertEquals } from "../deps/std/testing/asserts.ts";
+import { assertEquals } from "../deps.ts";
 import { getUser, resetUsers, User } from "./user.ts";
 
 interface UserContext {

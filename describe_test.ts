@@ -1,5 +1,5 @@
-import { assert, assertEquals } from "./deps/std/testing/asserts.ts";
-import { Spy, spy, Stub, stub } from "./deps/udibo/mock/mod.ts";
+import { assert, assertEquals, delay } from "./deps.ts";
+import { Spy, spy, Stub, stub } from "./test_deps.ts";
 import { TestSuite } from "./test_suite.ts";
 import {
   afterAll,
@@ -9,7 +9,6 @@ import {
   describe,
   it,
 } from "./describe.ts";
-import { delay } from "./deps/std/async/delay.ts";
 
 function testDefinition(
   options: Deno.TestDefinition,
@@ -467,6 +466,10 @@ Deno.test("top level describe it hooks", async () => {
     assert(beforeEachHook !== null);
     assert(afterEachHook !== null);
     assert(afterAllHook !== null);
+    beforeAllHook = beforeAllHook as Spy<void>;
+    beforeEachHook = beforeEachHook as Spy<void>;
+    afterEachHook = afterEachHook as Spy<void>;
+    afterAllHook = afterAllHook as Spy<void>;
 
     assertEquals(beforeAllHook!.calls.length, 0);
     assertEquals(beforeEachHook!.calls.length, 0);
@@ -593,6 +596,10 @@ Deno.test("top level describe it async hooks", async () => {
     assert(beforeEachHook !== null);
     assert(afterEachHook !== null);
     assert(afterAllHook !== null);
+    beforeAllHook = beforeAllHook as Spy<void>;
+    beforeEachHook = beforeEachHook as Spy<void>;
+    afterEachHook = afterEachHook as Spy<void>;
+    afterAllHook = afterAllHook as Spy<void>;
 
     assertEquals(beforeAllHook!.calls.length, 0);
     assertEquals(beforeEachHook!.calls.length, 0);
