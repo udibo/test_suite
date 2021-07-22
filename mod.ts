@@ -6,6 +6,7 @@ export {
   beforeAll,
   beforeEach,
   describe,
+  each,
   fdescribe,
   fit,
   it,
