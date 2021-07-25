@@ -985,3 +985,34 @@ Deno.test("each handles parameters correctly", async () => {
     registerTestStub.restore();
   }
 });
+
+Deno.test("each with options", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+  const testSpy = spy();
+
+  try {
+    TestSuite.reset();
+
+    each({
+      name: "each with options",
+      cases: [
+        { name: "first", params: [1] },
+        { name: "second", params: [2] },
+      ],
+      fn: testSpy,
+    });
+
+    assertEquals(registerTestStub.calls.length, 2);
+    assertEquals(testDefinition(registerTestStub.calls[0].args[0]), {
+      name: "each with options: first",
+    });
+    assertEquals(testDefinition(registerTestStub.calls[1].args[0]), {
+      name: "each with options: second",
+    });
+  } finally {
+    registerTestStub.restore();
+  }
+});
