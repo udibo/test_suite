@@ -197,6 +197,36 @@ function it(
 
 export type EachCaseType<T> = T | { name: string; params: T };
 /**
+ * Definition for a data-driven test
+ */
+export interface EachDefinition<T extends unknown[]> {
+  /** The name of the test. */
+  name: string;
+  /** The test function. */
+  fn: ((...params: T) => void | Promise<void>);
+  /** Ignore test if set to true. */
+  ignore?: boolean;
+  /**
+   * If at least one test suite or test has only set to true,
+   * only run test suites and tests that have only set to true.
+   */
+  only?: boolean;
+  /**
+   * Check that the number of async completed ops after the test is the same as
+   * the number of dispatched ops after the test. Defaults to true.
+   */
+  sanitizeOps?: boolean;
+  /**
+   * Ensure the test case does not "leak" resources - ie. the resource table after the test
+   * has exectly the same contents as before the test. Defaults to true.
+   */
+  sanitizeResources?: boolean;
+  /**
+   * The cases to execute the test for
+   */
+  cases: EachCaseType<T>[];
+}
+/**
  * Generate a set of identical tests with different parameters (e.g. to test
  * different inputs to your code under test without copy&pasting the test code).
  *
@@ -224,13 +254,36 @@ function each<T extends unknown[]>(
   name: string,
   cases: EachCaseType<T>[],
   fn: (...params: T) => void | Promise<void>,
-) {
-  cases.forEach((c) => {
-    if (Array.isArray(c)) {
-      it(`${name}: ${c}`, () => fn(...c));
-    } else {
-      it(`${name}: ${c.name}`, () => fn(...c.params));
-    }
+): void;
+function each<T extends unknown[]>(options: EachDefinition<T>): void;
+function each<T extends unknown[]>(
+  a: string | EachDefinition<T>,
+  cases?: EachCaseType<T>[],
+  fn?: (...params: T) => void | Promise<void>,
+): void {
+  if (currentSuite) lockHooks();
+  let myOptions: EachDefinition<T>;
+  if (typeof a === "string") {
+    myOptions = { name: a, fn: fn!, cases: cases! };
+  } else {
+    myOptions = a;
+  }
+
+  myOptions.cases.forEach((c) => {
+    const testOptions: TestDefinition<void> = {
+      name: Array.isArray(c)
+        ? `${myOptions.name}: ${c}`
+        : `${myOptions.name}: ${c.name}`,
+      fn: Array.isArray(c)
+        ? () => myOptions.fn(...c)
+        : () => myOptions.fn(...c.params),
+      ignore: myOptions.ignore,
+      only: myOptions.only,
+      sanitizeOps: myOptions.sanitizeOps,
+      sanitizeResources: myOptions.sanitizeResources,
+    };
+    if (currentSuite) testOptions.suite = currentSuite;
+    test(testOptions);
   });
 }
 
