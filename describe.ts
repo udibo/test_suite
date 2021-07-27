@@ -261,7 +261,6 @@ function each<T extends unknown[]>(
   cases?: EachCaseType<T>[],
   fn?: (...params: T) => void | Promise<void>,
 ): void {
-  if (currentSuite) lockHooks();
   let myOptions: EachDefinition<T>;
   if (typeof a === "string") {
     myOptions = { name: a, fn: fn!, cases: cases! };
@@ -269,8 +268,8 @@ function each<T extends unknown[]>(
     myOptions = a;
   }
 
-  myOptions.cases.forEach((c) => {
-    const testOptions: TestDefinition<void> = {
+  myOptions.cases.forEach((c) =>
+    it({
       name: Array.isArray(c)
         ? `${myOptions.name}: ${c}`
         : `${myOptions.name}: ${c.name}`,
@@ -281,10 +280,8 @@ function each<T extends unknown[]>(
       only: myOptions.only,
       sanitizeOps: myOptions.sanitizeOps,
       sanitizeResources: myOptions.sanitizeResources,
-    };
-    if (currentSuite) testOptions.suite = currentSuite;
-    test(testOptions);
-  });
+    })
+  );
 }
 
 export type FocusItDefinition = Omit<ItDefinition, "ignore" | "only">;
