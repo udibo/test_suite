@@ -7,6 +7,7 @@ import {
   beforeAll,
   beforeEach,
   describe,
+  each,
   it,
 } from "./describe.ts";
 
@@ -900,6 +901,117 @@ Deno.test("multi level suite tests with options", async () => {
     await registerTestStub.calls[5].args[0].fn();
     assertEquals(testSpys[5].calls.length, 1);
     assertEquals(testSpys[5].calls[0].args, [{}]);
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("simple each call", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+  const testSpy = spy();
+
+  try {
+    TestSuite.reset();
+
+    each("simple each call", [[1], [2], [3], [4]], testSpy);
+
+    assertEquals(registerTestStub.calls.length, 4);
+    assertEquals(testDefinition(registerTestStub.calls[0].args[0]), {
+      name: "simple each call: 1",
+    });
+    assertEquals(testDefinition(registerTestStub.calls[1].args[0]), {
+      name: "simple each call: 2",
+    });
+    assertEquals(testDefinition(registerTestStub.calls[2].args[0]), {
+      name: "simple each call: 3",
+    });
+    assertEquals(testDefinition(registerTestStub.calls[3].args[0]), {
+      name: "simple each call: 4",
+    });
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("each with named tests", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+  const testSpy = spy();
+
+  try {
+    TestSuite.reset();
+
+    each("each with name", [
+      { name: "first", params: [1] },
+      { name: "second", params: [2] },
+    ], testSpy);
+
+    assertEquals(registerTestStub.calls.length, 2);
+    assertEquals(testDefinition(registerTestStub.calls[0].args[0]), {
+      name: "each with name: first",
+    });
+    assertEquals(testDefinition(registerTestStub.calls[1].args[0]), {
+      name: "each with name: second",
+    });
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("each handles parameters correctly", async () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+  const testSpy = spy();
+
+  try {
+    TestSuite.reset();
+
+    each("each calls", [[1], [2]], testSpy);
+
+    for (const c of registerTestStub.calls) {
+      await c.args[0].fn();
+    }
+    assertEquals(testSpy.calls.length, 2);
+    assertEquals(testSpy.calls[0].args, [1]);
+    assertEquals(testSpy.calls[1].args, [2]);
+  } finally {
+    registerTestStub.restore();
+  }
+});
+
+Deno.test("each with options", () => {
+  const registerTestStub: Stub<typeof TestSuite> = stub(
+    TestSuite,
+    "registerTest",
+  );
+  const testSpy = spy();
+
+  try {
+    TestSuite.reset();
+
+    each({
+      name: "each with options",
+      cases: [
+        { name: "first", params: [1] },
+        { name: "second", params: [2] },
+      ],
+      fn: testSpy,
+    });
+
+    assertEquals(registerTestStub.calls.length, 2);
+    assertEquals(testDefinition(registerTestStub.calls[0].args[0]), {
+      name: "each with options: first",
+    });
+    assertEquals(testDefinition(registerTestStub.calls[1].args[0]), {
+      name: "each with options: second",
+    });
   } finally {
     registerTestStub.restore();
   }
