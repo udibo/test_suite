@@ -116,6 +116,7 @@ Deno.test("global it with options", async () => {
       only: false,
       sanitizeOps: false,
       sanitizeResources: false,
+      sanitizeExit: false,
     });
     assertEquals(registerTestStub.calls.length, 1);
     assertEquals(registerTestStub.calls[0].args.length, 1);
@@ -127,6 +128,7 @@ Deno.test("global it with options", async () => {
         only: false,
         sanitizeOps: false,
         sanitizeResources: false,
+        sanitizeExit: false,
       },
     );
 
@@ -136,7 +138,7 @@ Deno.test("global it with options", async () => {
       ignore: true,
       only: true,
       sanitizeOps: true,
-      sanitizeResources: true,
+      sanitizeExit: true,
     });
     assertEquals(registerTestStub.calls.length, 2);
     assertEquals(registerTestStub.calls[1].args.length, 1);
@@ -147,7 +149,7 @@ Deno.test("global it with options", async () => {
         ignore: true,
         only: true,
         sanitizeOps: true,
-        sanitizeResources: true,
+        sanitizeExit: true,
       },
     );
 
@@ -269,6 +271,7 @@ Deno.test("top level describe it with options", async () => {
         only: false,
         sanitizeOps: false,
         sanitizeResources: false,
+        sanitizeExit: false,
       });
       assertEquals(registerTestStub.calls.length, 1);
       assertEquals(registerTestStub.calls[0].args.length, 1);
@@ -280,6 +283,7 @@ Deno.test("top level describe it with options", async () => {
           only: false,
           sanitizeOps: false,
           sanitizeResources: false,
+          sanitizeExit: false,
         },
       );
 
@@ -290,6 +294,7 @@ Deno.test("top level describe it with options", async () => {
         only: true,
         sanitizeOps: true,
         sanitizeResources: true,
+        sanitizeExit: true,
       });
       assertEquals(registerTestStub.calls.length, 2);
       assertEquals(registerTestStub.calls[1].args.length, 1);
@@ -301,6 +306,7 @@ Deno.test("top level describe it with options", async () => {
           only: true,
           sanitizeOps: true,
           sanitizeResources: true,
+          sanitizeExit: true,
         },
       );
     });
@@ -311,6 +317,7 @@ Deno.test("top level describe it with options", async () => {
       only: true,
       sanitizeOps: false,
       sanitizeResources: true,
+      sanitizeExit: false,
       fn() {
         it({
           name: "test 1",
@@ -326,6 +333,7 @@ Deno.test("top level describe it with options", async () => {
             only: true,
             sanitizeOps: false,
             sanitizeResources: true,
+            sanitizeExit: false,
           },
         );
 
@@ -345,6 +353,7 @@ Deno.test("top level describe it with options", async () => {
             only: false,
             sanitizeOps: false,
             sanitizeResources: true,
+            sanitizeExit: false,
           },
         );
       },
@@ -763,6 +772,7 @@ Deno.test("multi level suite tests with options", async () => {
       only: true,
       sanitizeOps: false,
       sanitizeResources: true,
+      sanitizeExit: false,
       fn() {
         it("test 1", testSpys[0]);
         assertEquals(registerTestStub.calls.length, 1);
@@ -775,6 +785,7 @@ Deno.test("multi level suite tests with options", async () => {
             only: true,
             sanitizeOps: false,
             sanitizeResources: true,
+            sanitizeExit: false,
           },
         );
 
@@ -797,6 +808,7 @@ Deno.test("multi level suite tests with options", async () => {
                 only: false,
                 sanitizeOps: true,
                 sanitizeResources: true,
+                sanitizeExit: false,
               },
             );
 
@@ -816,6 +828,7 @@ Deno.test("multi level suite tests with options", async () => {
                 only: false,
                 sanitizeOps: true,
                 sanitizeResources: false,
+                sanitizeExit: false,
               },
             );
           },
@@ -832,6 +845,7 @@ Deno.test("multi level suite tests with options", async () => {
             only: true,
             sanitizeOps: false,
             sanitizeResources: true,
+            sanitizeExit: false,
           },
         );
 
@@ -851,6 +865,7 @@ Deno.test("multi level suite tests with options", async () => {
                 only: false,
                 sanitizeOps: true,
                 sanitizeResources: true,
+                sanitizeExit: false,
               },
             );
 
@@ -865,6 +880,7 @@ Deno.test("multi level suite tests with options", async () => {
                 only: false,
                 sanitizeOps: true,
                 sanitizeResources: true,
+                sanitizeExit: false,
               },
             );
           },

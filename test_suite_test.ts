@@ -114,6 +114,7 @@ Deno.test("global tests with options", async () => {
       only: false,
       sanitizeOps: false,
       sanitizeResources: false,
+      sanitizeExit: false,
     });
     assertEquals(registerTestStub.calls.length, 1);
     assertEquals(registerTestStub.calls[0].args.length, 1);
@@ -125,6 +126,7 @@ Deno.test("global tests with options", async () => {
         only: false,
         sanitizeOps: false,
         sanitizeResources: false,
+        sanitizeExit: false,
       },
     );
 
@@ -135,6 +137,7 @@ Deno.test("global tests with options", async () => {
       only: true,
       sanitizeOps: true,
       sanitizeResources: true,
+      sanitizeExit: true,
     });
     assertEquals(registerTestStub.calls.length, 2);
     assertEquals(registerTestStub.calls[1].args.length, 1);
@@ -146,6 +149,7 @@ Deno.test("global tests with options", async () => {
         only: true,
         sanitizeOps: true,
         sanitizeResources: true,
+        sanitizeExit: true,
       },
     );
 
@@ -277,6 +281,7 @@ Deno.test("top level suite tests with options", async () => {
       only: false,
       sanitizeOps: false,
       sanitizeResources: false,
+      sanitizeExit: false,
     });
     assertEquals(registerTestStub.calls.length, 1);
     assertEquals(registerTestStub.calls[0].args.length, 1);
@@ -288,6 +293,7 @@ Deno.test("top level suite tests with options", async () => {
         only: false,
         sanitizeOps: false,
         sanitizeResources: false,
+        sanitizeExit: false,
       },
     );
 
@@ -299,6 +305,7 @@ Deno.test("top level suite tests with options", async () => {
       only: true,
       sanitizeOps: true,
       sanitizeResources: true,
+      sanitizeExit: true,
     });
     assertEquals(registerTestStub.calls.length, 2);
     assertEquals(registerTestStub.calls[1].args.length, 1);
@@ -310,6 +317,7 @@ Deno.test("top level suite tests with options", async () => {
         only: true,
         sanitizeOps: true,
         sanitizeResources: true,
+        sanitizeExit: true,
       },
     );
 
@@ -319,6 +327,7 @@ Deno.test("top level suite tests with options", async () => {
       only: true,
       sanitizeOps: false,
       sanitizeResources: true,
+      sanitizeExit: false,
     });
 
     test({
@@ -336,6 +345,7 @@ Deno.test("top level suite tests with options", async () => {
         only: true,
         sanitizeOps: false,
         sanitizeResources: true,
+        sanitizeExit: false,
       },
     );
 
@@ -356,6 +366,7 @@ Deno.test("top level suite tests with options", async () => {
         only: false,
         sanitizeOps: false,
         sanitizeResources: true,
+        sanitizeExit: false,
       },
     );
 
@@ -1842,6 +1853,7 @@ Deno.test("multi level suite tests with options", async () => {
       only: true,
       sanitizeOps: false,
       sanitizeResources: true,
+      sanitizeExit: false,
     });
 
     test(suiteA, "test 1", testSpys[0]);
@@ -1855,6 +1867,7 @@ Deno.test("multi level suite tests with options", async () => {
         only: true,
         sanitizeOps: false,
         sanitizeResources: true,
+        sanitizeExit: false,
       },
     );
 
@@ -1880,6 +1893,7 @@ Deno.test("multi level suite tests with options", async () => {
         only: false,
         sanitizeOps: true,
         sanitizeResources: true,
+        sanitizeExit: false,
       },
     );
 
@@ -1900,6 +1914,7 @@ Deno.test("multi level suite tests with options", async () => {
         only: false,
         sanitizeOps: true,
         sanitizeResources: false,
+        sanitizeExit: false,
       },
     );
 
@@ -1914,6 +1929,7 @@ Deno.test("multi level suite tests with options", async () => {
         only: true,
         sanitizeOps: false,
         sanitizeResources: true,
+        sanitizeExit: false,
       },
     );
 
@@ -1935,6 +1951,7 @@ Deno.test("multi level suite tests with options", async () => {
         only: false,
         sanitizeOps: true,
         sanitizeResources: true,
+        sanitizeExit: false,
       },
     );
 
@@ -1949,6 +1966,7 @@ Deno.test("multi level suite tests with options", async () => {
         only: false,
         sanitizeOps: true,
         sanitizeResources: true,
+        sanitizeExit: false,
       },
     );
 

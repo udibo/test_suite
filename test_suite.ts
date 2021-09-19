@@ -31,6 +31,10 @@ export interface TestDefinition<T> {
    * has exectly the same contents as before the test. Defaults to true.
    */
   sanitizeResources?: boolean;
+  /**
+   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
+   */
+  sanitizeExit?: boolean;
 }
 
 export interface TestSuiteDefinition<T> {
@@ -60,6 +64,10 @@ export interface TestSuiteDefinition<T> {
    * after each test has exactly the same contents as before each test. Defaults to true.
    */
   sanitizeResources?: boolean;
+  /**
+   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
+   */
+  sanitizeExit?: boolean;
   /** Run some shared setup before each test in the suite. */
   beforeEach?:
     | (() => void)
@@ -248,6 +256,10 @@ export class TestSuite<T> {
    * after each test has exactly the same contents as before each test. Defaults to true.
    */
   private sanitizeResources?: boolean;
+  /**
+   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
+   */
+  sanitizeExit?: boolean;
   /** Full name of the last test in the suite. */
   private last?: string;
   private started: boolean;
@@ -305,6 +317,8 @@ export class TestSuite<T> {
     this.sanitizeOps = options.sanitizeOps ?? this.suite?.sanitizeOps;
     this.sanitizeResources = options.sanitizeResources ??
       this.suite?.sanitizeResources;
+    this.sanitizeExit = options.sanitizeExit ??
+      this.suite?.sanitizeExit;
 
     this.hooks = {};
     TestSuite.setHooks(this, options);
@@ -491,6 +505,12 @@ export class TestSuite<T> {
       test.sanitizeResources = options.sanitizeResources;
     } else if (typeof suite.sanitizeResources !== "undefined") {
       test.sanitizeResources = suite.sanitizeResources;
+    }
+
+    if (typeof options.sanitizeExit !== "undefined") {
+      test.sanitizeExit = options.sanitizeExit;
+    } else if (typeof suite.sanitizeExit !== "undefined") {
+      test.sanitizeExit = suite.sanitizeExit;
     }
 
     // tests should go onto a queue that drains

@@ -27,6 +27,10 @@ export interface DescribeDefinition {
    * after each test has exactly the same contents as before each test. Defaults to true.
    */
   sanitizeResources?: boolean;
+  /**
+   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
+   */
+  sanitizeExit?: boolean;
 }
 
 export interface ItDefinition {
@@ -53,6 +57,10 @@ export interface ItDefinition {
    * has exectly the same contents as before the test. Defaults to true.
    */
   sanitizeResources?: boolean;
+  /**
+   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
+   */
+  sanitizeExit?: boolean;
 }
 
 interface Context {
@@ -97,6 +105,9 @@ function describe(a: string | DescribeDefinition, fn?: () => void): void {
     }
     if (typeof a.sanitizeResources !== "undefined") {
       options.sanitizeResources = a.sanitizeResources;
+    }
+    if (typeof a.sanitizeExit !== "undefined") {
+      options.sanitizeExit = a.sanitizeExit;
     }
   }
   const parent: TestSuite<void> | null = currentSuite;
@@ -189,6 +200,9 @@ function it(
     if (typeof a.sanitizeResources !== "undefined") {
       options.sanitizeResources = a.sanitizeResources;
     }
+    if (typeof a.sanitizeExit !== "undefined") {
+      options.sanitizeExit = a.sanitizeExit;
+    }
   }
 
   if (currentSuite) options.suite = currentSuite;
@@ -221,6 +235,10 @@ export interface EachDefinition<T extends unknown[]> {
    * has exectly the same contents as before the test. Defaults to true.
    */
   sanitizeResources?: boolean;
+  /**
+   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
+   */
+  sanitizeExit?: boolean;
   /**
    * The cases to execute the test for
    */
@@ -280,6 +298,7 @@ function each<T extends unknown[]>(
       only: myOptions.only,
       sanitizeOps: myOptions.sanitizeOps,
       sanitizeResources: myOptions.sanitizeResources,
+      sanitizeExit: myOptions.sanitizeExit,
     })
   );
 }
