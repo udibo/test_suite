@@ -1,4 +1,4 @@
-export { delay } from "https://deno.land/std@0.107.0/async/delay.ts";
+export { delay } from "https://deno.land/std@0.114.0/async/delay.ts";
 export {
   assert,
   assertEquals,
@@ -6,6 +6,6 @@ export {
   assertObjectMatch,
   assertThrows,
   assertThrowsAsync,
-} from "https://deno.land/std@0.107.0/testing/asserts.ts";
+} from "https://deno.land/std@0.114.0/testing/asserts.ts";
 
 export { Vector } from "https://deno.land/x/collections@0.11.2/vector.ts";
