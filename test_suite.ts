@@ -324,7 +324,7 @@ export class TestSuite<T> {
     TestSuite.setHooks(this, options);
     this.beforeAll = async () => {
       try {
-        if (this.suite) {
+        if (this.suite && !this.suite.started) {
           await this.suite.beforeAll();
           this.context = { ...this.suite.context, ...this.context };
         }
