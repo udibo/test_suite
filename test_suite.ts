@@ -323,29 +323,29 @@ export class TestSuite<T> {
     this.hooks = {};
     TestSuite.setHooks(this, options);
     this.beforeAll = async () => {
+      if (this.suite) {
+        await this.suite.beforeAll();
+        this.context = { ...this.suite.context, ...this.context };
+      }
       if (this.sanitizeOps ?? true) {
         this.beforeAllMetrics = await getMetrics();
       }
       if (this.sanitizeResources ?? true) {
         this.beforeAllResources = Deno.resources();
       }
-      if (this.suite) {
-        await this.suite.beforeAll();
-        this.context = { ...this.suite.context, ...this.context };
-      }
       if (this.hooks.beforeAll) await this.hooks.beforeAll(this.context as T);
       this.started = true;
     };
     this.afterAll = async () => {
       if (this.hooks.afterAll) await this.hooks.afterAll(this.context as T);
-      if (this.suite && this.suite.last === this.last) {
-        await this.suite.afterAll();
-      }
       if (this.sanitizeOps ?? true) {
         await assertOps("suite", this.beforeAllMetrics!);
       }
       if (this.sanitizeResources ?? true) {
         assertResources("suite", this.beforeAllResources!);
+      }
+      if (this.suite && this.suite.last === this.last) {
+        await this.suite.afterAll();
       }
     };
     this.beforeEach = async (context: T) => {
