@@ -2,8 +2,8 @@ import {
   assertEquals,
   AssertionError,
   assertObjectMatch,
+  assertRejects,
   assertThrows,
-  assertThrowsAsync,
   delay,
 } from "./deps.ts";
 import { Spy, spy, Stub, stub } from "./test_deps.ts";
@@ -970,7 +970,7 @@ Deno.test("top level suite beforeAll/afterAll hooks leaking async ops", async ()
     assertEquals(testSpys[0].calls.length, 1);
     assertEquals(testSpys[1].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[1].args[0].fn(),
       AssertionError,
       "Test suite is leaking async ops.",
@@ -1086,7 +1086,7 @@ Deno.test("top level suite beforeEach/afterEach hooks leaking async ops", async 
     assertEquals(testSpys[0].calls.length, 0);
     assertEquals(testSpys[1].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[0].args[0].fn(),
       AssertionError,
       "Test case is leaking async ops.",
@@ -1104,7 +1104,7 @@ Deno.test("top level suite beforeEach/afterEach hooks leaking async ops", async 
     // https://github.com/denoland/deno/issues/8965
     if (timer !== -1) clearTimeout(timer);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[1].args[0].fn(),
       AssertionError,
       "Test case is leaking async ops.",
@@ -1247,7 +1247,7 @@ Deno.test("top level suite tests leaking async ops", async () => {
     assertEquals(testSpys[0].calls.length, 0);
     assertEquals(testSpys[1].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[0].args[0].fn(),
       AssertionError,
       "Test case is leaking async ops.",
@@ -1266,7 +1266,7 @@ Deno.test("top level suite tests leaking async ops", async () => {
     // https://github.com/denoland/deno/issues/8965
     if (timer !== -1) clearTimeout(timer);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[1].args[0].fn(),
       AssertionError,
       "Test case is leaking async ops.",
@@ -1285,7 +1285,7 @@ Deno.test("top level suite tests leaking async ops", async () => {
     // https://github.com/denoland/deno/issues/8965
     if (timer !== -1) clearTimeout(timer);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[2].args[0].fn(),
       AssertionError,
       "Test case is leaking async ops.",
@@ -1409,7 +1409,7 @@ Deno.test("top level suite beforeAll/afterAll hooks leaking resources", async ()
     assertEquals(testSpys[0].calls.length, 1);
     assertEquals(testSpys[1].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[1].args[0].fn(),
       AssertionError,
       "Test suite is leaking resources.",
@@ -1520,7 +1520,7 @@ Deno.test("top level suite beforeEach/afterEach hooks leaking resources", async 
     assertEquals(testSpys[0].calls.length, 0);
     assertEquals(testSpys[1].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[0].args[0].fn(),
       AssertionError,
       "Test case is leaking resources.",
@@ -1532,7 +1532,7 @@ Deno.test("top level suite beforeEach/afterEach hooks leaking resources", async 
     assertEquals(testSpys[0].calls.length, 1);
     assertEquals(testSpys[1].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[1].args[0].fn(),
       AssertionError,
       "Test case is leaking resources.",
@@ -1663,7 +1663,7 @@ Deno.test("top level suite tests leaking resources", async () => {
     assertEquals(testSpys[0].calls.length, 0);
     assertEquals(testSpys[1].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[0].args[0].fn(),
       AssertionError,
       "Test case is leaking resources.",
@@ -1676,7 +1676,7 @@ Deno.test("top level suite tests leaking resources", async () => {
     assertEquals(testSpys[1].calls.length, 0);
     assertEquals(testSpys[2].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[1].args[0].fn(),
       AssertionError,
       "Test case is leaking resources.",
@@ -1689,7 +1689,7 @@ Deno.test("top level suite tests leaking resources", async () => {
     assertEquals(testSpys[1].calls.length, 1);
     assertEquals(testSpys[2].calls.length, 0);
 
-    await assertThrowsAsync(
+    await assertRejects(
       async () => await registerTestStub.calls[2].args[0].fn(),
       AssertionError,
       "Test case is leaking resources.",
