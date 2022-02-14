@@ -1,382 +1,561 @@
-import {
-  test,
-  TestDefinition,
-  TestSuite,
-  TestSuiteDefinition,
-} from "./test_suite.ts";
+import { Vector } from "./deps.ts";
 
-export interface DescribeDefinition {
-  /** The name of the test suite will be prepended to the names of tests in the fn. */
-  name: string;
-  /** The callback for the test suite. */
-  fn: () => void;
-  /** Ignore all tests in suite if set to true. */
-  ignore?: boolean;
+export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
+  fn?: () => void;
   /**
-   * If at least one test suite or test has only set to true,
-   * only run test suites and tests that have only set to true.
+   * The `describe` function returns a `TestSuite` representing the group of tests.
+   * If `describe` is called within another `describe` calls `fn`, the suite will default to that parent `describe` calls returned `TestSuite`.
+   * If `describe` is not called within another `describe` calls `fn`, the suite will default to the global `TestSuite`.
    */
-  only?: boolean;
-  /**
-   * Check that the number of async completed ops after each test in the suite
-   * is the same as the number of dispatched ops. Defaults to true.
-   */
-  sanitizeOps?: boolean;
-  /**
-   * Ensure the test cases in the suite do not "leak" resources - ie. the resource table
-   * after each test has exactly the same contents as before each test. Defaults to true.
-   */
-  sanitizeResources?: boolean;
-  /**
-   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
-   */
-  sanitizeExit?: boolean;
+  suite?: TestSuite<T>;
+  /** Run some shared setup before all of the tests in the suite. */
+  beforeAll?: (context: T) => void | Promise<void>;
+  /** Run some shared teardown after all of the tests in the suite. */
+  afterAll?: (context: T) => void | Promise<void>;
+  /** Run some shared setup before each test in the suite. */
+  beforeEach?: (context: T) => void | Promise<void>;
+  /** Run some shared teardown after each test in the suite. */
+  afterEach?: (context: T) => void | Promise<void>;
 }
 
-export interface ItDefinition {
-  /** The name of the test. */
-  name: string;
-  /** The test function. */
-  fn:
-    | (() => void)
-    | (() => Promise<void>);
-  /** Ignore test if set to true. */
-  ignore?: boolean;
+export interface ItDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
+  fn: (context: T) => void | Promise<void>;
   /**
-   * If at least one test suite or test has only set to true,
-   * only run test suites and tests that have only set to true.
+   * The `describe` function returns a `TestSuite` representing the group of tests.
+   * If `it` is called within a `describe` calls `fn`, the suite will default to that parent `describe` calls returned `TestSuite`.
+   * If `it` is not called within a `describe` calls `fn`, the suite will default to the global `TestSuite`.
    */
-  only?: boolean;
-  /**
-   * Check that the number of async completed ops after the test is the same as
-   * the number of dispatched ops after the test. Defaults to true.
-   */
-  sanitizeOps?: boolean;
-  /**
-   * Ensure the test case does not "leak" resources - ie. the resource table after the test
-   * has exectly the same contents as before the test. Defaults to true.
-   */
-  sanitizeResources?: boolean;
-  /**
-   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
-   */
-  sanitizeExit?: boolean;
+  suite?: TestSuite<T>;
 }
 
-interface Context {
-  beforeEach: boolean;
-  afterEach: boolean;
-  beforeAll: boolean;
-  afterAll: boolean;
-}
+/** If a test has been registered yet. Block adding global hooks if a test has been registered. */
+let started = false;
 
-const hooksLocked: boolean[] = [];
-function areHooksLocked(): boolean {
-  return hooksLocked[hooksLocked.length - 1] ?? false;
-}
-function lockHooks(): void {
-  if (hooksLocked.length === 0) {
-    throw new Error("cannot lock hooks on global context");
-  }
-  hooksLocked[hooksLocked.length - 1] = true;
-}
+/** The names of all the different types of hooks. */
+type HookNames = "beforeAll" | "afterAll" | "beforeEach" | "afterEach";
 
-let currentContext: Context | null = null;
-let currentSuite: TestSuite<void> | null = null;
+/** Optional test definition keys. */
+const optionalTestDefinitionKeys: (keyof Deno.TestDefinition)[] = [
+  "only",
+  "permissions",
+  "ignore",
+  "sanitizeExit",
+  "sanitizeOps",
+  "sanitizeResources",
+];
+
+/** Optional test step definition keys. */
+const optionalTestStepDefinitionKeys: (keyof Deno.TestStepDefinition)[] = [
+  "ignore",
+  "sanitizeExit",
+  "sanitizeOps",
+  "sanitizeResources",
+];
 
 /**
  * A group of tests. A test suite can include child test suites.
- * The name of the test suite is prepended to the name of each test within it.
- * Tests belonging to a suite will inherit options from it.
  */
-function describe(name: string, fn: () => void): void;
-function describe(options: DescribeDefinition): void;
-function describe(a: string | DescribeDefinition, fn?: () => void): void {
-  let options: TestSuiteDefinition<void> | void;
-  if (typeof a === "string") {
-    options = { name: a };
-  } else {
-    fn = a.fn;
-    options = { name: a.name };
-    if (typeof a.ignore !== "undefined") options.ignore = a.ignore;
-    if (typeof a.only !== "undefined") options.only = a.only;
-    if (typeof a.sanitizeOps !== "undefined") {
-      options.sanitizeOps = a.sanitizeOps;
-    }
-    if (typeof a.sanitizeResources !== "undefined") {
-      options.sanitizeResources = a.sanitizeResources;
-    }
-    if (typeof a.sanitizeExit !== "undefined") {
-      options.sanitizeExit = a.sanitizeExit;
-    }
-  }
-  const parent: TestSuite<void> | null = currentSuite;
-  if (parent) options.suite = parent;
-  const suite: TestSuite<void> = new TestSuite(options);
+export class TestSuite<T> {
+  protected describe: DescribeDefinition<T>;
+  protected steps: Vector<TestSuite<T> | ItDefinition<T>>;
+  protected hasOnlyStep: boolean;
+  protected context?: T;
 
-  const parentContext: Context | null = currentContext;
-  currentContext = {
-    beforeEach: false,
-    afterEach: false,
-    beforeAll: false,
-    afterAll: false,
-  };
-  if (currentSuite) lockHooks();
-  hooksLocked.push(false);
-  currentSuite = suite;
-  try {
-    fn!();
-  } finally {
-    hooksLocked.pop();
-    currentContext = parentContext;
-    currentSuite = parent;
-  }
-}
+  constructor(describe: DescribeDefinition<T>) {
+    this.describe = describe;
+    this.steps = new Vector();
+    this.hasOnlyStep = false;
 
-export type FocusDescribeDefinition = Omit<
-  DescribeDefinition,
-  "ignore" | "only"
->;
-function focusDescribe(
-  ignore: boolean,
-  only: boolean,
-  a: string | FocusDescribeDefinition,
-  fn?: () => void,
-): void {
-  let options: DescribeDefinition | void;
-  if (typeof a === "string") {
-    options = { name: a, fn: fn! };
-  } else {
-    options = { ...a };
-  }
-  options.ignore = ignore;
-  options.only = only;
-  describe(options);
-}
-
-/**
- * A focused group of tests. A test suite can include child test suites.
- * The name of the test suite is prepended to the name of each test within it.
- * Tests belonging to a suite will inherit options from it.
- */
-function fdescribe(name: string, fn: () => void): void;
-function fdescribe(options: FocusDescribeDefinition): void;
-function fdescribe(a: string | FocusDescribeDefinition, fn?: () => void): void {
-  focusDescribe(false, true, a, fn);
-}
-
-/**
- * An ignored group of tests. A test suite can include child test suites.
- * The name of the test suite is prepended to the name of each test within it.
- * Tests belonging to a suite will inherit options from it.
- */
-function xdescribe(name: string, fn: () => void): void;
-function xdescribe(options: FocusDescribeDefinition): void;
-function xdescribe(a: string | FocusDescribeDefinition, fn?: () => void): void {
-  focusDescribe(true, false, a, fn);
-}
-
-/**
- * Register a test which will run when `deno test` is used on the command line
- * and the containing module looks like a test module.
- */
-function it(name: string, fn: () => void): void;
-function it(options: ItDefinition): void;
-function it(
-  a: string | ItDefinition,
-  fn?: (() => void) | (() => Promise<void>),
-): void {
-  if (currentSuite) lockHooks();
-  let options: TestDefinition<void> | void;
-  if (typeof a === "string") {
-    options = { name: a, fn: fn! };
-  } else {
-    options = { name: a.name, fn: a.fn };
-    if (typeof a.ignore !== "undefined") options.ignore = a.ignore;
-    if (typeof a.only !== "undefined") options.only = a.only;
-    if (typeof a.sanitizeOps !== "undefined") {
-      options.sanitizeOps = a.sanitizeOps;
+    if (describe.suite) {
+      describe.suite.steps.push(this);
+    } else {
+      const {
+        name,
+        ignore,
+        only,
+        permissions,
+        sanitizeExit,
+        sanitizeOps,
+        sanitizeResources,
+      } = describe;
+      TestSuite.registerTest({
+        name,
+        ignore,
+        only,
+        permissions,
+        sanitizeExit,
+        sanitizeOps,
+        sanitizeResources,
+        fn: async (t) => {
+          const context = {} as T;
+          if (this.describe.beforeAll) {
+            this.describe.beforeAll(context);
+          }
+          try {
+            activeTestSuites.push(this);
+            await TestSuite.run(this, context, t);
+          } finally {
+            activeTestSuites.pop();
+            if (this.describe.afterAll) {
+              this.describe.afterAll(context);
+            }
+          }
+        },
+      });
     }
-    if (typeof a.sanitizeResources !== "undefined") {
-      options.sanitizeResources = a.sanitizeResources;
-    }
-    if (typeof a.sanitizeExit !== "undefined") {
-      options.sanitizeExit = a.sanitizeExit;
+
+    const { fn } = describe;
+    if (fn) {
+      const temp = currentTestSuite;
+      currentTestSuite = this;
+      try {
+        fn();
+      } finally {
+        currentTestSuite = temp;
+      }
     }
   }
 
-  if (currentSuite) options.suite = currentSuite;
-  test(options);
+  /** This is used internally for testing this module. */
+  static reset(): void {
+    started = false;
+    currentTestSuite = null;
+  }
+
+  /** This is used internally to register tests. */
+  static registerTest(options: Deno.TestDefinition): void {
+    options = { ...options };
+    optionalTestDefinitionKeys.forEach((key) => {
+      if (typeof options[key] === "undefined") delete options[key];
+    });
+    Deno.test(options);
+    if (!started) started = true;
+  }
+
+  /** This is used internally to add steps to a test suite. */
+  static addStep<T>(
+    suite: TestSuite<T>,
+    step: TestSuite<T> | ItDefinition<T>,
+  ): void {
+    suite.steps.push(step);
+  }
+
+  /** This is used internally to add hooks to a test suite. */
+  static setHook<T>(
+    suite: TestSuite<T>,
+    name: HookNames,
+    fn: (context: T) => void | Promise<void>,
+  ): void {
+    if (suite.describe[name]) {
+      throw new Error(`${name} hook already set for test suite`);
+    }
+    suite.describe[name] = fn;
+  }
+
+  /** This is used internally to run all steps for a test suite. */
+  static async run<T>(
+    suite: TestSuite<T>,
+    context: T,
+    t: Deno.TestContext,
+  ): Promise<void> {
+    for (const step of suite.steps) {
+      const {
+        name,
+        fn,
+        ignore,
+        only,
+        permissions,
+        sanitizeExit,
+        sanitizeOps,
+        sanitizeResources,
+      } = step instanceof TestSuite ? step.describe : step;
+
+      only;
+      // if suite.hasOnlyStep, ignore steps without only or describe.only?
+      // need to figure out how to get only working
+
+      const options: Deno.TestStepDefinition = {
+        name,
+        ignore,
+        sanitizeExit,
+        sanitizeOps,
+        sanitizeResources,
+        fn: async (t) => {
+          if (permissions) {
+            throw new Error(
+              "permissions option not available for nested tests",
+            );
+          }
+          context = { ...context };
+          if (step instanceof TestSuite) {
+            if (step.describe.beforeAll) {
+              step.describe.beforeAll(context);
+            }
+            try {
+              activeTestSuites.push(step);
+              await TestSuite.run(step, context, t);
+            } finally {
+              activeTestSuites.pop();
+              if (step.describe.afterAll) {
+                step.describe.afterAll(context);
+              }
+            }
+          } else {
+            await TestSuite.runTest(fn!, context, activeTestSuites.values());
+          }
+        },
+      };
+      optionalTestStepDefinitionKeys.forEach((key) => {
+        if (typeof options[key] === "undefined") delete options[key];
+      });
+      await t.step(options);
+    }
+  }
+
+  static async runTest<T>(
+    fn: (context: T) => void | Promise<void>,
+    context: T,
+    activeTestSuites: IterableIterator<TestSuite<T>>,
+  ) {
+    const suite: TestSuite<T> = activeTestSuites.next().value;
+    if (suite) {
+      context = { ...context };
+      if (suite.describe.beforeEach) {
+        suite.describe.beforeEach(context);
+      }
+      try {
+        await TestSuite.runTest(fn, context, activeTestSuites);
+      } finally {
+        if (suite.describe.afterEach) {
+          suite.describe.afterEach(context);
+        }
+      }
+    } else {
+      await fn(context);
+    }
+  }
 }
 
-export type EachCaseType<T> = T | { name: string; params: T };
-/**
- * Definition for a data-driven test
- */
-export interface EachDefinition<T extends unknown[]> {
-  /** The name of the test. */
-  name: string;
-  /** The test function. */
-  fn: ((...params: T) => void | Promise<void>);
-  /** Ignore test if set to true. */
-  ignore?: boolean;
-  /**
-   * If at least one test suite or test has only set to true,
-   * only run test suites and tests that have only set to true.
-   */
-  only?: boolean;
-  /**
-   * Check that the number of async completed ops after the test is the same as
-   * the number of dispatched ops after the test. Defaults to true.
-   */
-  sanitizeOps?: boolean;
-  /**
-   * Ensure the test case does not "leak" resources - ie. the resource table after the test
-   * has exectly the same contents as before the test. Defaults to true.
-   */
-  sanitizeResources?: boolean;
-  /**
-   * Ensure the test case does not prematurely cause the process to exit, for example, via a call to `deno.exit`. Defaults to true.
-   */
-  sanitizeExit?: boolean;
-  /**
-   * The cases to execute the test for
-   */
-  cases: EachCaseType<T>[];
-}
-/**
- * Generate a set of identical tests with different parameters (e.g. to test
- * different inputs to your code under test without copy&pasting the test code).
- *
- * @param name The base name of the test case to register. This will be used as
- *  the prefix for the actual test case name, which is suffixed with either the
- *  current parameter set or the parameter set name
- * @param cases The different test case parameter sets. Each parameter set is an
- *  array giving the parameters for one call to it().
- *
- *  Each entry in the array can be one of two things:
- *  1. an array of parameters for this one particular test case
- *  2. an object of the form { name: string, params: unknown[] }
- *
- * In the first case, tests case names will be generated by suffixing the base
- * name with the parameter array. This is suitable for test cases, where your
- * parameters are not too large when printed. In the second case, test cases
- * will be suffixed with the name field of the given object, whereas the
- * params field contains the actual test case parameters. This is for cases
- * where using your parameters as test names would lead to very long names and
- * make reading the test logs very hard.
- * @param fn The test function. This function must have parameters corresponding
- *  to the entries in one parameter set in the cases array.
- */
-function each<T extends unknown[]>(
+// deno-lint-ignore no-explicit-any
+let currentTestSuite: TestSuite<any> | null = null;
+// deno-lint-ignore no-explicit-any
+const activeTestSuites: Vector<TestSuite<any>> = new Vector();
+
+/** Registers an individual test case. */
+export function it<T>(options: ItDefinition<T>): void;
+export function it<T>(
   name: string,
-  cases: EachCaseType<T>[],
-  fn: (...params: T) => void | Promise<void>,
+  options: Omit<ItDefinition<T>, "name">,
 ): void;
-function each<T extends unknown[]>(options: EachDefinition<T>): void;
-function each<T extends unknown[]>(
-  a: string | EachDefinition<T>,
-  cases?: EachCaseType<T>[],
-  fn?: (...params: T) => void | Promise<void>,
+export function it<T>(
+  name: string,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(fn: (context: T) => void | Promise<void>): void;
+export function it<T>(
+  name: string,
+  options: Omit<ItDefinition<T>, "fn" | "name">,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  options: Omit<ItDefinition<T>, "fn">,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  options: Omit<ItDefinition<T>, "fn" | "name">,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  suite: TestSuite<T>,
+  name: string,
+  options: Omit<ItDefinition<T>, "name" | "suite">,
+): void;
+export function it<T>(
+  suite: TestSuite<T>,
+  name: string,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  suite: TestSuite<T>,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  suite: TestSuite<T>,
+  name: string,
+  options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  suite: TestSuite<T>,
+  options: Omit<ItDefinition<T>, "fn" | "suite">,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  suite: TestSuite<T>,
+  options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
+  fn: (context: T) => void | Promise<void>,
+): void;
+export function it<T>(
+  suiteOptionsOrNameOrFn:
+    | TestSuite<T>
+    | ItDefinition<T>
+    | string
+    | ((context: T) => void | Promise<void>)
+    | Omit<ItDefinition<T>, "fn">
+    | Omit<ItDefinition<T>, "fn" | "name">,
+  optionsOrNameOrFn?:
+    | ItDefinition<T>
+    | string
+    | ((context: T) => void | Promise<void>)
+    | Omit<ItDefinition<T>, "suite">
+    | Omit<ItDefinition<T>, "name">
+    | Omit<ItDefinition<T>, "fn" | "name">,
+  optionsOrFn?:
+    | ((context: T) => void | Promise<void>)
+    | Omit<ItDefinition<T>, "name" | "suite">
+    | Omit<ItDefinition<T>, "fn" | "name" | "suite">,
+  fn?: ((context: T) => void | Promise<void>),
 ): void {
-  let myOptions: EachDefinition<T>;
-  if (typeof a === "string") {
-    myOptions = { name: a, fn: fn!, cases: cases! };
+  let suite: TestSuite<T> | undefined = undefined;
+  let name: string;
+  let options:
+    | ItDefinition<T>
+    | Omit<ItDefinition<T>, "fn">
+    | Omit<ItDefinition<T>, "name">
+    | Omit<ItDefinition<T>, "fn" | "name">;
+  if (suiteOptionsOrNameOrFn instanceof TestSuite) {
+    suite = suiteOptionsOrNameOrFn;
   } else {
-    myOptions = a;
+    fn = optionsOrFn as typeof fn;
+    optionsOrFn = optionsOrNameOrFn as typeof optionsOrFn;
+    optionsOrNameOrFn = suiteOptionsOrNameOrFn as typeof optionsOrNameOrFn;
+  }
+  if (typeof optionsOrNameOrFn === "string") {
+    name = optionsOrNameOrFn;
+    if (typeof optionsOrFn === "function") {
+      fn = optionsOrFn;
+      options = {};
+    } else {
+      options = optionsOrFn!;
+      if (!fn) fn = (options as Omit<ItDefinition<T>, "name">).fn;
+    }
+  } else if (typeof optionsOrNameOrFn === "function") {
+    fn = optionsOrNameOrFn;
+    name = fn.name;
+    options = {};
+  } else {
+    options = optionsOrNameOrFn!;
+    if (typeof optionsOrFn === "function") {
+      fn = optionsOrFn;
+    } else {
+      fn = (options as ItDefinition<T>).fn;
+    }
+    name = (options as ItDefinition<T>).name ?? fn.name;
   }
 
-  myOptions.cases.forEach((c) =>
-    it({
-      name: Array.isArray(c)
-        ? `${myOptions.name}: ${c}`
-        : `${myOptions.name}: ${c.name}`,
-      fn: Array.isArray(c)
-        ? () => myOptions.fn(...c)
-        : () => myOptions.fn(...c.params),
-      ignore: myOptions.ignore,
-      only: myOptions.only,
-      sanitizeOps: myOptions.sanitizeOps,
-      sanitizeResources: myOptions.sanitizeResources,
-      sanitizeExit: myOptions.sanitizeExit,
-    })
-  );
-}
-
-export type FocusItDefinition = Omit<ItDefinition, "ignore" | "only">;
-function focusIt(
-  ignore: boolean,
-  only: boolean,
-  a: string | FocusItDefinition,
-  fn?: () => void,
-): void {
-  let options: ItDefinition | void;
-  if (typeof a === "string") {
-    options = { name: a, fn: fn! };
-  } else {
-    options = { ...a };
+  if (!suite) {
+    suite = options.suite ?? currentTestSuite as TestSuite<T>;
   }
-  options.ignore = ignore;
-  options.only = only;
-  it(options);
+
+  if (suite) {
+    TestSuite.addStep(suite, {
+      ...options,
+      name,
+      fn: fn!,
+    });
+  } else {
+    const {
+      ignore,
+      only,
+      permissions,
+      sanitizeExit,
+      sanitizeOps,
+      sanitizeResources,
+    } = options;
+    TestSuite.registerTest({
+      name,
+      ignore,
+      only,
+      permissions,
+      sanitizeExit,
+      sanitizeOps,
+      sanitizeResources,
+      fn: async () => {
+        await fn!({} as T);
+      },
+    });
+  }
 }
 
-/**
- * Register a focused test which will run when `deno test` is used on the command line
- * and the containing module looks like a test module.
- */
-function fit(name: string, fn: () => void): void;
-function fit(options: FocusItDefinition): void;
-function fit(a: string | FocusItDefinition, fn?: () => void): void {
-  focusIt(false, true, a, fn);
-}
-
-/**
- * Register an ignored test which will run when `deno test` is used on the command line
- * and the containing module looks like a test module.
- */
-function xit(name: string, fn: () => void): void;
-function xit(options: FocusItDefinition): void;
-function xit(a: string | FocusItDefinition, fn?: () => void): void {
-  focusIt(true, false, a, fn);
-}
-
-function setHook(
-  key: "beforeEach" | "afterEach" | "beforeAll" | "afterAll",
-  fn: (() => void) | (() => Promise<void>),
-) {
-  if (!currentSuite) throw new Error(`${key} not allowed globally`);
-  if (areHooksLocked()) {
+function addHook<T>(
+  name: HookNames,
+  fn: (context: T) => void | Promise<void>,
+): void {
+  if (!started) {
+    currentTestSuite = new TestSuite({
+      name: "global",
+      [name]: fn,
+    });
+  } else if (!currentTestSuite) {
     throw new Error(
-      `${key} must be called before child suites and tests in suite`,
+      "cannot add global hooks after a global test is registered",
     );
+  } else {
+    TestSuite.setHook(currentTestSuite!, name, fn);
   }
-  if (currentContext![key]) {
-    throw new Error(`${key} already called for suite`);
+}
+
+export function beforeAll<T>(
+  fn: (context: T) => void | Promise<void>,
+): void {
+  addHook("beforeAll", fn);
+}
+
+export function afterAll<T>(
+  fn: (context: T) => void | Promise<void>,
+): void {
+  addHook("afterAll", fn);
+}
+
+export function beforeEach<T>(
+  fn: (context: T) => void | Promise<void>,
+): void {
+  addHook("beforeEach", fn);
+}
+
+export function afterEach<T>(
+  fn: (context: T) => void | Promise<void>,
+): void {
+  addHook("afterEach", fn);
+}
+
+/** Registers a test suite. */
+export function describe<T>(options: DescribeDefinition<T>): TestSuite<T>;
+export function describe<T>(
+  name: string,
+): TestSuite<T>;
+export function describe<T>(
+  name: string,
+  options: Omit<DescribeDefinition<T>, "name">,
+): TestSuite<T>;
+export function describe<T>(
+  name: string,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(fn: () => void): TestSuite<T>;
+export function describe<T>(
+  name: string,
+  options: Omit<DescribeDefinition<T>, "fn" | "name">,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  options: Omit<DescribeDefinition<T>, "fn">,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  options: Omit<DescribeDefinition<T>, "fn" | "name">,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  suite: TestSuite<T>,
+  name: string,
+): TestSuite<T>;
+export function describe<T>(
+  suite: TestSuite<T>,
+  name: string,
+  options: Omit<DescribeDefinition<T>, "name" | "suite">,
+): TestSuite<T>;
+export function describe<T>(
+  suite: TestSuite<T>,
+  name: string,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  suite: TestSuite<T>,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  suite: TestSuite<T>,
+  name: string,
+  options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  suite: TestSuite<T>,
+  options: Omit<DescribeDefinition<T>, "fn" | "suite">,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  suite: TestSuite<T>,
+  options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
+  fn: () => void,
+): TestSuite<T>;
+export function describe<T>(
+  suiteOptionsOrNameOrFn:
+    | TestSuite<T>
+    | DescribeDefinition<T>
+    | string
+    | (() => void)
+    | Omit<DescribeDefinition<T>, "fn">
+    | Omit<DescribeDefinition<T>, "fn" | "name">,
+  optionsOrNameOrFn?:
+    | ItDefinition<T>
+    | string
+    | (() => void)
+    | Omit<DescribeDefinition<T>, "suite">
+    | Omit<DescribeDefinition<T>, "name">
+    | Omit<DescribeDefinition<T>, "fn" | "name">,
+  optionsOrFn?:
+    | (() => void)
+    | Omit<DescribeDefinition<T>, "name" | "suite">
+    | Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
+  fn?: (() => void),
+): TestSuite<T> {
+  let suite: TestSuite<T> | undefined = undefined;
+  let name: string;
+  let options:
+    | DescribeDefinition<T>
+    | Omit<DescribeDefinition<T>, "fn">
+    | Omit<DescribeDefinition<T>, "name">
+    | Omit<DescribeDefinition<T>, "fn" | "name">;
+  if (suiteOptionsOrNameOrFn instanceof TestSuite) {
+    suite = suiteOptionsOrNameOrFn;
+  } else {
+    fn = optionsOrFn as typeof fn;
+    optionsOrFn = optionsOrNameOrFn as typeof optionsOrFn;
+    optionsOrNameOrFn = suiteOptionsOrNameOrFn as typeof optionsOrNameOrFn;
   }
-  currentContext![key] = true;
-  const suite: TestSuite<void> = currentSuite;
-  TestSuite.setHooks(suite, { [key]: fn });
-}
+  if (typeof optionsOrNameOrFn === "string") {
+    name = optionsOrNameOrFn;
+    if (typeof optionsOrFn === "function") {
+      fn = optionsOrFn;
+      options = {};
+    } else {
+      options = optionsOrFn ?? {};
+      if (!fn) fn = (options as Omit<DescribeDefinition<T>, "name">).fn;
+    }
+  } else if (typeof optionsOrNameOrFn === "function") {
+    fn = optionsOrNameOrFn;
+    name = fn.name;
+    options = {};
+  } else {
+    options = optionsOrNameOrFn ?? {};
+    if (typeof optionsOrFn === "function") {
+      fn = optionsOrFn;
+    } else {
+      fn = (options as DescribeDefinition<T>).fn;
+    }
+    name = (options as DescribeDefinition<T>).name ?? fn?.name ?? "";
+  }
 
-/** Run some shared setup before each test in the suite. */
-export function beforeEach(fn: (() => void) | (() => Promise<void>)): void {
-  setHook("beforeEach", fn);
-}
+  if (!suite) {
+    suite = options.suite ?? currentTestSuite as TestSuite<T>;
+  }
 
-/** Run some shared teardown after each test in the suite. */
-export function afterEach(fn: (() => void) | (() => Promise<void>)): void {
-  setHook("afterEach", fn);
+  return new TestSuite({
+    ...options,
+    suite,
+    name,
+    fn,
+  });
 }
-
-/** Run some shared setup before all of the tests in the suite. */
-export function beforeAll(fn: (() => void) | (() => Promise<void>)): void {
-  setHook("beforeAll", fn);
-}
-
-/** Run some shared teardown after all of the tests in the suite. */
-export function afterAll(fn: (() => void) | (() => Promise<void>)): void {
-  setHook("afterAll", fn);
-}
-
-export { describe, each, fdescribe, fit, it, xdescribe, xit };

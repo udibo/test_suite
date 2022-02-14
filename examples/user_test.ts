@@ -1,11 +1,12 @@
-import { test, TestSuite } from "../mod.ts";
+import { describe, it } from "../mod.ts";
 import { assertEquals } from "../deps.ts";
 import { getUser, resetUsers, User } from "./user.ts";
 
 interface UserContext {
   user: User;
 }
-const userSuite: TestSuite<UserContext> = new TestSuite({
+
+const userSuite = describe({
   name: "user",
   beforeEach(context: UserContext) {
     context.user = new User("Kyle June");
@@ -15,7 +16,7 @@ const userSuite: TestSuite<UserContext> = new TestSuite({
   },
 });
 
-test(userSuite, "create", () => {
+it(userSuite, "create", () => {
   const user = new User("John Doe");
   assertEquals(user.name, "John Doe");
 });
@@ -24,20 +25,20 @@ interface GetUserContext extends UserContext {
   value?: number;
 }
 
-const getUserSuite: TestSuite<GetUserContext> = new TestSuite<GetUserContext>({
+const getUserSuite = describe<GetUserContext>({
   name: "getUser",
   suite: userSuite,
 });
 
-test(getUserSuite, "user does not exist", () => {
+it(getUserSuite, "user does not exist", () => {
   assertEquals(getUser("John Doe"), undefined);
 });
 
-test(getUserSuite, "user exists", (context: UserContext) => {
+it(getUserSuite, "user exists", (context: UserContext) => {
   assertEquals(getUser("Kyle June"), context.user);
 });
 
-test(userSuite, "resetUsers", (context: UserContext) => {
+it(userSuite, "resetUsers", (context: UserContext) => {
   assertEquals(getUser("Kyle June"), context.user);
   resetUsers();
   assertEquals(getUser("Kyle June"), undefined);
