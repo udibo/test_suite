@@ -66,8 +66,11 @@ export class TestSuite<T> {
     this.steps = new Vector();
     this.hasOnlyStep = false;
 
-    if (describe.suite) {
-      describe.suite.steps.push(this);
+    const suite: TestSuite<T> = describe.suite ??
+      currentTestSuite as TestSuite<T>;
+
+    if (suite) {
+      suite.steps.push(this);
     } else {
       const {
         name,
