@@ -241,81 +241,91 @@ let currentTestSuite: TestSuite<any> | null = null;
 // deno-lint-ignore no-explicit-any
 const activeTestSuites: Vector<TestSuite<any>> = new Vector();
 
+/** The arguments for an ItFunction. */
+type ItArgs<T> =
+  | [options: ItDefinition<T>]
+  | [
+    name: string,
+    options: Omit<ItDefinition<T>, "name">,
+  ]
+  | [
+    name: string,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [fn: (context: T) => void | Promise<void>]
+  | [
+    name: string,
+    options: Omit<ItDefinition<T>, "fn" | "name">,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [
+    options: Omit<ItDefinition<T>, "fn">,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [
+    options: Omit<ItDefinition<T>, "fn" | "name">,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [
+    suite: TestSuite<T>,
+    name: string,
+    options: Omit<ItDefinition<T>, "name" | "suite">,
+  ]
+  | [
+    suite: TestSuite<T>,
+    name: string,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [
+    suite: TestSuite<T>,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [
+    suite: TestSuite<T>,
+    name: string,
+    options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [
+    suite: TestSuite<T>,
+    options: Omit<ItDefinition<T>, "fn" | "suite">,
+    fn: (context: T) => void | Promise<void>,
+  ]
+  | [
+    suite: TestSuite<T>,
+    options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
+    fn: (context: T) => void | Promise<void>,
+  ];
+
+/** Registers an individual test case with only set to true. */
+export interface ItOnlyFunction {
+  <T>(...args: ItArgs<T>): void;
+}
+
+/** Registers an individual test case with ignore set to true. */
+export interface ItIgnoreFunction {
+  <T>(...args: ItArgs<T>): void;
+}
+
 /** Registers an individual test case. */
-export function it<T>(options: ItDefinition<T>): void;
-export function it<T>(
-  name: string,
-  options: Omit<ItDefinition<T>, "name">,
-): void;
-export function it<T>(
-  name: string,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(fn: (context: T) => void | Promise<void>): void;
-export function it<T>(
-  name: string,
-  options: Omit<ItDefinition<T>, "fn" | "name">,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  options: Omit<ItDefinition<T>, "fn">,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  options: Omit<ItDefinition<T>, "fn" | "name">,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  suite: TestSuite<T>,
-  name: string,
-  options: Omit<ItDefinition<T>, "name" | "suite">,
-): void;
-export function it<T>(
-  suite: TestSuite<T>,
-  name: string,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  suite: TestSuite<T>,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  suite: TestSuite<T>,
-  name: string,
-  options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  suite: TestSuite<T>,
-  options: Omit<ItDefinition<T>, "fn" | "suite">,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  suite: TestSuite<T>,
-  options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
-  fn: (context: T) => void | Promise<void>,
-): void;
-export function it<T>(
-  suiteOptionsOrNameOrFn:
-    | TestSuite<T>
-    | ItDefinition<T>
-    | string
-    | ((context: T) => void | Promise<void>)
-    | Omit<ItDefinition<T>, "fn">
-    | Omit<ItDefinition<T>, "fn" | "name">,
-  optionsOrNameOrFn?:
-    | ItDefinition<T>
-    | string
-    | ((context: T) => void | Promise<void>)
-    | Omit<ItDefinition<T>, "suite">
-    | Omit<ItDefinition<T>, "name">
-    | Omit<ItDefinition<T>, "fn" | "name">,
-  optionsOrFn?:
-    | ((context: T) => void | Promise<void>)
-    | Omit<ItDefinition<T>, "name" | "suite">
-    | Omit<ItDefinition<T>, "fn" | "name" | "suite">,
-  fn?: ((context: T) => void | Promise<void>),
-): void {
+export interface ItFunction {
+  <T>(...args: ItArgs<T>): void;
+
+  /** Registers an individual test case with only set to true. */
+  only: ItOnlyFunction;
+
+  /** Registers an individual test case with ignore set to true. */
+  ignore: ItIgnoreFunction;
+}
+
+/** Generates an ItDefinition from ItArgs. */
+function itDefinition<T>(...args: ItArgs<T>): ItDefinition<T> {
+  let [
+    suiteOptionsOrNameOrFn,
+    optionsOrNameOrFn,
+    optionsOrFn,
+    fn,
+  ] = args;
   let suite: TestSuite<T> | undefined = undefined;
   let name: string;
   let options:
@@ -353,18 +363,26 @@ export function it<T>(
     name = (options as ItDefinition<T>).name ?? fn.name;
   }
 
-  if (!suite) {
-    suite = options.suite ?? currentTestSuite as TestSuite<T>;
-  }
+  return {
+    suite,
+    ...options,
+    name,
+    fn,
+  };
+}
+
+export const it = function it<T>(...args: ItArgs<T>): void {
+  const options = itDefinition(...args);
+  let { suite } = options;
+
+  suite ??= currentTestSuite as TestSuite<T>;
 
   if (suite) {
-    TestSuite.addStep(suite, {
-      ...options,
-      name,
-      fn: fn!,
-    });
+    TestSuite.addStep(suite, options);
   } else {
     const {
+      name,
+      fn,
       ignore,
       only,
       permissions,
@@ -385,7 +403,23 @@ export function it<T>(
       },
     });
   }
-}
+} as ItFunction;
+
+it.only = function itOnly<T>(...args: ItArgs<T>): void {
+  const options = itDefinition(...args);
+  return it({
+    ...options,
+    only: true,
+  });
+} as ItOnlyFunction;
+
+it.ignore = function itIgnore<T>(...args: ItArgs<T>): void {
+  const options = itDefinition(...args);
+  return it({
+    ...options,
+    ignore: true,
+  });
+} as ItIgnoreFunction;
 
 function addHook<T>(
   name: HookNames,
@@ -429,88 +463,95 @@ export function afterEach<T>(
   addHook("afterEach", fn);
 }
 
+/** The arguments for a DescribeFunction. */
+type DescribeArgs<T> =
+  | [options: DescribeDefinition<T>]
+  | [name: string]
+  | [
+    name: string,
+    options: Omit<DescribeDefinition<T>, "name">,
+  ]
+  | [name: string, fn: () => void]
+  | [fn: () => void]
+  | [
+    name: string,
+    options: Omit<DescribeDefinition<T>, "fn" | "name">,
+    fn: () => void,
+  ]
+  | [
+    options: Omit<DescribeDefinition<T>, "fn">,
+    fn: () => void,
+  ]
+  | [
+    options: Omit<DescribeDefinition<T>, "fn" | "name">,
+    fn: () => void,
+  ]
+  | [
+    suite: TestSuite<T>,
+    name: string,
+  ]
+  | [
+    suite: TestSuite<T>,
+    name: string,
+    options: Omit<DescribeDefinition<T>, "name" | "suite">,
+  ]
+  | [
+    suite: TestSuite<T>,
+    name: string,
+    fn: () => void,
+  ]
+  | [
+    suite: TestSuite<T>,
+    fn: () => void,
+  ]
+  | [
+    suite: TestSuite<T>,
+    name: string,
+    options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
+    fn: () => void,
+  ]
+  | [
+    suite: TestSuite<T>,
+    options: Omit<DescribeDefinition<T>, "fn" | "suite">,
+    fn: () => void,
+  ]
+  | [
+    suite: TestSuite<T>,
+    options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
+    fn: () => void,
+  ];
+
+/** Registers a test suite with only set to true. */
+export interface DescribeOnlyFunction {
+  <T>(...args: DescribeArgs<T>): TestSuite<T>;
+}
+
+/** Registers a test suite with ignore set to true. */
+export interface DescribeIgnoreFunction {
+  <T>(...args: DescribeArgs<T>): TestSuite<T>;
+}
+
 /** Registers a test suite. */
-export function describe<T>(options: DescribeDefinition<T>): TestSuite<T>;
-export function describe<T>(
-  name: string,
-): TestSuite<T>;
-export function describe<T>(
-  name: string,
-  options: Omit<DescribeDefinition<T>, "name">,
-): TestSuite<T>;
-export function describe<T>(
-  name: string,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(fn: () => void): TestSuite<T>;
-export function describe<T>(
-  name: string,
-  options: Omit<DescribeDefinition<T>, "fn" | "name">,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  options: Omit<DescribeDefinition<T>, "fn">,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  options: Omit<DescribeDefinition<T>, "fn" | "name">,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  suite: TestSuite<T>,
-  name: string,
-): TestSuite<T>;
-export function describe<T>(
-  suite: TestSuite<T>,
-  name: string,
-  options: Omit<DescribeDefinition<T>, "name" | "suite">,
-): TestSuite<T>;
-export function describe<T>(
-  suite: TestSuite<T>,
-  name: string,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  suite: TestSuite<T>,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  suite: TestSuite<T>,
-  name: string,
-  options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  suite: TestSuite<T>,
-  options: Omit<DescribeDefinition<T>, "fn" | "suite">,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  suite: TestSuite<T>,
-  options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
-  fn: () => void,
-): TestSuite<T>;
-export function describe<T>(
-  suiteOptionsOrNameOrFn:
-    | TestSuite<T>
-    | DescribeDefinition<T>
-    | string
-    | (() => void)
-    | Omit<DescribeDefinition<T>, "fn">
-    | Omit<DescribeDefinition<T>, "fn" | "name">,
-  optionsOrNameOrFn?:
-    | ItDefinition<T>
-    | string
-    | (() => void)
-    | Omit<DescribeDefinition<T>, "suite">
-    | Omit<DescribeDefinition<T>, "name">
-    | Omit<DescribeDefinition<T>, "fn" | "name">,
-  optionsOrFn?:
-    | (() => void)
-    | Omit<DescribeDefinition<T>, "name" | "suite">
-    | Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
-  fn?: (() => void),
-): TestSuite<T> {
+export interface DescribeFunction {
+  <T>(...args: DescribeArgs<T>): TestSuite<T>;
+
+  /** Registers a test suite with only set to true. */
+  only: DescribeOnlyFunction;
+
+  /** Registers a test suite with ignore set to true. */
+  ignore: DescribeIgnoreFunction;
+}
+
+/** Generates a DescribeDefinition from DescribeArgs. */
+export function describeDefinition<T>(
+  ...args: DescribeArgs<T>
+): DescribeDefinition<T> {
+  let [
+    suiteOptionsOrNameOrFn,
+    optionsOrNameOrFn,
+    optionsOrFn,
+    fn,
+  ] = args;
   let suite: TestSuite<T> | undefined = undefined;
   let name: string;
   let options:
@@ -552,10 +593,37 @@ export function describe<T>(
     suite = options.suite ?? currentTestSuite as TestSuite<T>;
   }
 
-  return new TestSuite({
+  return {
     ...options,
     suite,
     name,
     fn,
-  });
+  };
 }
+
+export const describe = function describe<T>(
+  ...args: DescribeArgs<T>
+): TestSuite<T> {
+  const options = describeDefinition(...args);
+  return new TestSuite(options);
+} as DescribeFunction;
+
+describe.only = function describeOnly<T>(
+  ...args: DescribeArgs<T>
+): TestSuite<T> {
+  const options = describeDefinition(...args);
+  return describe({
+    ...options,
+    only: true,
+  });
+} as DescribeOnlyFunction;
+
+describe.ignore = function describeIgnore<T>(
+  ...args: DescribeArgs<T>
+): TestSuite<T> {
+  const options = describeDefinition(...args);
+  return describe({
+    ...options,
+    ignore: true,
+  });
+} as DescribeIgnoreFunction;

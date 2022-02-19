@@ -59,13 +59,17 @@ class TestContext implements Deno.TestContext {
   }
 }
 
-const baseOptions: Omit<Deno.TestDefinition, "name" | "fn"> = {
+const baseStepOptions: Omit<Deno.TestStepDefinition, "name" | "fn"> = {
   ignore: false,
-  only: false,
-  permissions: "inherit",
   sanitizeExit: true,
   sanitizeOps: true,
   sanitizeResources: true,
+};
+
+const baseOptions: Omit<Deno.TestDefinition, "name" | "fn"> = {
+  ...baseStepOptions,
+  only: false,
+  permissions: "inherit",
 };
 
 Deno.test("global", async (t) => {
@@ -86,7 +90,8 @@ Deno.test("global", async (t) => {
       });
     }
 
-    async function assertMinimumOptions(
+    async function assertOptions<T>(
+      expectedOptions: Omit<Deno.TestDefinition, "name" | "fn">,
       cb: (fn: Spy<void>) => void,
     ): Promise<void> {
       const test = stub(Deno, "test");
@@ -99,39 +104,27 @@ Deno.test("global", async (t) => {
       assertSpyCalls(fn, 0);
       const call = assertSpyCall(test, 0);
       const options = call.args[0] as Deno.TestDefinition;
-      assertEquals(Object.keys(options).sort(), ["fn", "name"]);
-      assertEquals(options.name, "example");
+      assertEquals(
+        Object.keys(options).sort(),
+        ["name", "fn", ...Object.keys(expectedOptions)].sort(),
+      );
+      assertObjectMatch(options, {
+        name: "example",
+        ...expectedOptions,
+      });
       await assertOptionsFn(options, fn);
+    }
+
+    async function assertMinimumOptions(
+      cb: (fn: Spy<void>) => void,
+    ): Promise<void> {
+      await assertOptions({}, cb);
     }
 
     async function assertAllOptions(
       cb: (fn: Spy<void>) => void,
     ): Promise<void> {
-      const test = stub(Deno, "test");
-      const fn = spy();
-      try {
-        cb(fn);
-      } finally {
-        test.restore();
-      }
-      assertSpyCalls(fn, 0);
-      const call = assertSpyCall(test, 0);
-      const options = call.args[0] as Deno.TestDefinition;
-      assertEquals(Object.keys(options).sort(), [
-        "fn",
-        "ignore",
-        "name",
-        "only",
-        "permissions",
-        "sanitizeExit",
-        "sanitizeOps",
-        "sanitizeResources",
-      ]);
-      assertObjectMatch(options, {
-        name: "example",
-        ...baseOptions,
-      });
-      await assertOptionsFn(options, fn);
+      await assertOptions(baseOptions, cb);
     }
 
     await t.step("signature 1", async (t) => {
@@ -259,6 +252,298 @@ Deno.test("global", async (t) => {
           );
         }));
     });
+
+    await t.step("only", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ only: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, only: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only({ name: "example", fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only({
+                name: "example",
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 2", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only("example", { fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only("example", {
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step(
+        "signature 3",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it.only("example", fn), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(
+              it.only(function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }),
+      );
+
+      await t.step("signature 5", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only("example", {}, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only("example", {
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only({ name: "example" }, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only({
+                name: "example",
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(
+                it.only({}, function example() {
+                  fn.apply(undefined, Array.from(arguments));
+                }),
+                undefined,
+              );
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only({
+                ...baseOptions,
+              }, function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }));
+      });
+    });
+
+    await t.step("ignore", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ ignore: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, ignore: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore({ name: "example", fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore({
+                name: "example",
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 2", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore("example", { fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore("example", {
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step(
+        "signature 3",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it.ignore("example", fn), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(
+              it.ignore(function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }),
+      );
+
+      await t.step("signature 5", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore("example", {}, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore("example", {
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore({ name: "example" }, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore({
+                name: "example",
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(
+                it.ignore({}, function example() {
+                  fn.apply(undefined, Array.from(arguments));
+                }),
+                undefined,
+              );
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore({
+                ...baseOptions,
+              }, function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }));
+      });
+    });
   });
 
   await t.step("describe", async (t) => {
@@ -291,7 +576,8 @@ Deno.test("global", async (t) => {
       assertSpyCalls(fn, 1);
     }
 
-    async function assertMinimumOptions(
+    async function assertOptions(
+      expectedOptions: Omit<Deno.TestDefinition, "name" | "fn">,
       cb: (fns: Spy<void>[]) => void,
     ): Promise<void> {
       const test = stub(Deno, "test");
@@ -304,44 +590,27 @@ Deno.test("global", async (t) => {
 
       const call = assertSpyCall(test, 0);
       const options = call.args[0] as Deno.TestDefinition;
-      assertEquals(Object.keys(options).sort(), ["fn", "name"]);
-      assertEquals(options.name, "example");
+      assertEquals(
+        Object.keys(options).sort(),
+        ["name", "fn", ...Object.keys(expectedOptions)].sort(),
+      );
+      assertObjectMatch(options, {
+        name: "example",
+        ...expectedOptions,
+      });
       await assertOptionsFn(options, fns);
+    }
+
+    async function assertMinimumOptions(
+      cb: (fns: Spy<void>[]) => void,
+    ): Promise<void> {
+      await assertOptions({}, cb);
     }
 
     async function assertAllOptions(
       cb: (fns: Spy<void>[]) => void,
     ): Promise<void> {
-      const test = stub(Deno, "test");
-      const fns = [spy(), spy()];
-      try {
-        cb(fns);
-      } finally {
-        test.restore();
-      }
-
-      const call = assertSpyCall(test, 0);
-      const options = call.args[0] as Deno.TestDefinition;
-      assertEquals(Object.keys(options).sort(), [
-        "fn",
-        "ignore",
-        "name",
-        "only",
-        "permissions",
-        "sanitizeExit",
-        "sanitizeOps",
-        "sanitizeResources",
-      ]);
-      assertObjectMatch(options, {
-        name: "example",
-        ignore: false,
-        only: false,
-        permissions: "inherit",
-        sanitizeExit: true,
-        sanitizeOps: true,
-        sanitizeResources: true,
-      });
-      await assertOptionsFn(options, fns);
+      await assertOptions({ ...baseOptions }, cb);
     }
 
     await t.step("signature 1", async (t) => {
@@ -504,6 +773,388 @@ Deno.test("global", async (t) => {
           assert(suite instanceof TestSuite);
           assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
         }));
+    });
+
+    await t.step("only", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ only: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, only: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only({ name: "example" });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only({
+                name: "example",
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 2",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.only("example");
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 3", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only("example", {});
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only("example", {
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.only("example", () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 5",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.only(function example() {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only("example", {}, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only("example", {
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only({ name: "example" }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only({
+                name: "example",
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 8", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only({}, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only({
+                ...baseOptions,
+              }, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+    });
+
+    await t.step("ignore", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ ignore: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, ignore: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore({ name: "example" });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore({
+                name: "example",
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 2",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.ignore("example");
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 3", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore("example", {});
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore("example", {
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.ignore("example", () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 5",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.ignore(function example() {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore("example", {}, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore("example", {
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore({ name: "example" }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore({
+                name: "example",
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 8", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore({}, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore({
+                ...baseOptions,
+              }, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
     });
   });
 });
