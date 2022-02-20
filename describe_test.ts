@@ -1234,6 +1234,103 @@ Deno.test("global", async (t) => {
       });
     });
 
+    await t.step("nested only", async (t) => {
+      async function assertOptionsFn(
+        options: Deno.TestDefinition,
+        fns: Spy<void>[],
+      ): Promise<void> {
+        assertSpyCalls(fns[0], 0);
+        assertSpyCalls(fns[1], 0);
+
+        const context = new TestContext();
+        const result = options.fn(context);
+        assertStrictEquals(Promise.resolve(result), result);
+        assertEquals(await result, undefined);
+        assertSpyCalls(context.spies.step, 1);
+
+        let fn = fns[0];
+        assertSpyCalls(fn, 0);
+
+        fn = fns[1];
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{}],
+          returned: undefined,
+        });
+        assertSpyCalls(fn, 1);
+
+        fn = fns[2];
+        assertSpyCalls(fn, 0);
+      }
+
+      async function assertOnly(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        const test = stub(Deno, "test");
+        const fns = [spy(), spy(), spy()];
+        try {
+          cb(fns);
+        } finally {
+          test.restore();
+        }
+
+        const call = assertSpyCall(test, 0);
+        const options = call.args[0] as Deno.TestDefinition;
+        assertEquals(
+          Object.keys(options).sort(),
+          ["name", "fn"].sort(),
+        );
+        assertObjectMatch(options, {
+          name: "example",
+        });
+        await assertOptionsFn(options, fns);
+      }
+
+      await t.step("it", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            assertEquals(it.only({ name: "b", fn: fns[1] }), undefined);
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+
+      await t.step("nested it", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            describe("nested", () => {
+              assertEquals(it.only({ name: "b", fn: fns[1] }), undefined);
+            });
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+
+      await t.step("describe", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            describe.only("nested", () => {
+              assertEquals(it({ name: "b", fn: fns[1] }), undefined);
+            });
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+
+      await t.step("nested describe", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            describe("nested", () => {
+              describe.only("nested 2", () => {
+                assertEquals(it({ name: "b", fn: fns[1] }), undefined);
+              });
+            });
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+    });
+
     await t.step("with hooks", async (t) => {
       async function assertHooks(
         cb: (

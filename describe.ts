@@ -69,8 +69,19 @@ export class TestSuite<T> {
     const suite: TestSuite<T> = describe.suite ??
       currentTestSuite as TestSuite<T>;
 
+    const { fn } = describe;
+    if (fn) {
+      const temp = currentTestSuite;
+      currentTestSuite = this;
+      try {
+        fn();
+      } finally {
+        currentTestSuite = temp;
+      }
+    }
+
     if (suite) {
-      suite.steps.push(this);
+      TestSuite.addStep(suite, this);
     } else {
       const {
         name,
@@ -106,17 +117,6 @@ export class TestSuite<T> {
         },
       });
     }
-
-    const { fn } = describe;
-    if (fn) {
-      const temp = currentTestSuite;
-      currentTestSuite = this;
-      try {
-        fn();
-      } finally {
-        currentTestSuite = temp;
-      }
-    }
   }
 
   /** This is used internally for testing this module. */
@@ -132,7 +132,25 @@ export class TestSuite<T> {
       if (typeof options[key] === "undefined") delete options[key];
     });
     Deno.test(options);
-    if (!started) started = true;
+  }
+
+  /** Updates all steps within top level suite to have ignore set to true if only is not set to true on step. */
+  static addingOnlyStep<T>(suite: TestSuite<T>) {
+    if (!suite.hasOnlyStep) {
+      for (let i = 0; i < suite.steps.length; i++) {
+        const step = suite.steps.get(i)!;
+        if (step instanceof TestSuite) {
+          if (!(step.hasOnlyStep || step.describe.only)) {
+            suite.steps.delete(i--);
+          }
+        } else {
+          if (!step.only) {
+            suite.steps.delete(i--);
+          }
+        }
+      }
+      suite.hasOnlyStep = true;
+    }
   }
 
   /** This is used internally to add steps to a test suite. */
@@ -140,7 +158,26 @@ export class TestSuite<T> {
     suite: TestSuite<T>,
     step: TestSuite<T> | ItDefinition<T>,
   ): void {
-    suite.steps.push(step);
+    if (!suite.hasOnlyStep) {
+      if (step instanceof TestSuite) {
+        if (step.hasOnlyStep || step.describe.only) {
+          TestSuite.addingOnlyStep(suite);
+        }
+      } else {
+        if (step.only) TestSuite.addingOnlyStep(suite);
+      }
+    }
+
+    let omit = false;
+    if (suite.hasOnlyStep) {
+      if (step instanceof TestSuite) {
+        if (!(step.hasOnlyStep || step.describe.only)) omit = true;
+      } else {
+        if (!step.only) omit = true;
+      }
+    }
+
+    if (!omit) suite.steps.push(step);
   }
 
   /** This is used internally to add hooks to a test suite. */
@@ -166,16 +203,11 @@ export class TestSuite<T> {
         name,
         fn,
         ignore,
-        only,
         permissions,
         sanitizeExit,
         sanitizeOps,
         sanitizeResources,
       } = step instanceof TestSuite ? step.describe : step;
-
-      only;
-      // if suite.hasOnlyStep, ignore steps without only or describe.only?
-      // need to figure out how to get only working
 
       const options: Deno.TestStepDefinition = {
         name,
@@ -380,6 +412,7 @@ export const it = function it<T>(...args: ItArgs<T>): void {
 
   suite ??= currentTestSuite as TestSuite<T>;
 
+  if (!started) started = true;
   if (suite) {
     TestSuite.addStep(suite, options);
   } else {
@@ -428,15 +461,16 @@ function addHook<T>(
   name: HookNames,
   fn: (context: T) => void | Promise<void>,
 ): void {
-  if (!started) {
+  if (!currentTestSuite) {
+    if (started) {
+      throw new Error(
+        "cannot add global hooks after a global test is registered",
+      );
+    }
     currentTestSuite = new TestSuite({
       name: "global",
       [name]: fn,
     });
-  } else if (!currentTestSuite) {
-    throw new Error(
-      "cannot add global hooks after a global test is registered",
-    );
   } else {
     TestSuite.setHook(currentTestSuite!, name, fn);
   }
@@ -608,6 +642,7 @@ export const describe = function describe<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
   const options = describeDefinition(...args);
+  if (!started) started = true;
   return new TestSuite(options);
 } as DescribeFunction;
 
