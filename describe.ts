@@ -116,7 +116,7 @@ function itDefinition<T>(...args: ItArgs<T>): ItDefinition<T> {
 }
 
 /** Registers an individual test case. */
-export function it<T>(...args: ItArgs<T>): void {
+function it<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   let { suite } = options;
 
@@ -334,7 +334,7 @@ function describeDefinition<T>(
 }
 
 /** Registers a test suite. */
-export function describe<T>(
+function describe<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
   const options = describeDefinition(...args);
@@ -363,3 +363,5 @@ describe.ignore = function describeIgnore<T>(
     ignore: true,
   });
 };
+
+export { describe, it };
