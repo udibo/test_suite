@@ -116,7 +116,17 @@ function itDefinition<T>(...args: ItArgs<T>): ItDefinition<T> {
 }
 
 /** Registers an individual test case. */
-function it<T>(...args: ItArgs<T>): void {
+export interface it {
+  <T>(...args: ItArgs<T>): void;
+
+  /** Registers an individual test case with only set to true. */
+  only<T>(...args: ItArgs<T>): void;
+
+  /** Registers an individual test case with ignore set to true. */
+  ignore<T>(...args: ItArgs<T>): void;
+}
+
+export function it<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   let { suite } = options;
 
@@ -151,7 +161,6 @@ function it<T>(...args: ItArgs<T>): void {
   }
 }
 
-/** Registers an individual test case with only set to true. */
 it.only = function itOnly<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   return it({
@@ -160,7 +169,6 @@ it.only = function itOnly<T>(...args: ItArgs<T>): void {
   });
 };
 
-/** Registers an individual test case with ignore set to true. */
 it.ignore = function itIgnore<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   return it({
@@ -334,7 +342,17 @@ function describeDefinition<T>(
 }
 
 /** Registers a test suite. */
-function describe<T>(
+export interface describe {
+  <T>(...args: DescribeArgs<T>): TestSuite<T>;
+
+  /** Registers a test suite with only set to true. */
+  only<T>(...args: DescribeArgs<T>): TestSuite<T>;
+
+  /** Registers a test suite with ignore set to true. */
+  ignore<T>(...args: DescribeArgs<T>): TestSuite<T>;
+}
+
+export function describe<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
   const options = describeDefinition(...args);
@@ -363,5 +381,3 @@ describe.ignore = function describeIgnore<T>(
     ignore: true,
   });
 };
-
-export { describe, it };
