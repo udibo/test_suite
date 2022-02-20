@@ -1,5 +1,6 @@
 import { Vector } from "./deps.ts";
 
+/** The options for creating a test suite with the describe function. */
 export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   fn?: () => void;
   /**
@@ -18,6 +19,7 @@ export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   afterEach?: (context: T) => void | Promise<void>;
 }
 
+/** The options for creating an individual test case with the it function. */
 export interface ItDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   fn: (context: T) => void | Promise<void>;
   /**

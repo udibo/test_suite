@@ -62,27 +62,6 @@ type ItArgs<T> =
     fn: (context: T) => void | Promise<void>,
   ];
 
-/** Registers an individual test case with only set to true. */
-export interface ItOnlyFunction {
-  <T>(...args: ItArgs<T>): void;
-}
-
-/** Registers an individual test case with ignore set to true. */
-export interface ItIgnoreFunction {
-  <T>(...args: ItArgs<T>): void;
-}
-
-/** Registers an individual test case. */
-export interface ItFunction {
-  <T>(...args: ItArgs<T>): void;
-
-  /** Registers an individual test case with only set to true. */
-  only: ItOnlyFunction;
-
-  /** Registers an individual test case with ignore set to true. */
-  ignore: ItIgnoreFunction;
-}
-
 /** Generates an ItDefinition from ItArgs. */
 function itDefinition<T>(...args: ItArgs<T>): ItDefinition<T> {
   let [
@@ -136,7 +115,8 @@ function itDefinition<T>(...args: ItArgs<T>): ItDefinition<T> {
   };
 }
 
-export const it = function it<T>(...args: ItArgs<T>): void {
+/** Registers an individual test case. */
+export function it<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   let { suite } = options;
 
@@ -169,23 +149,25 @@ export const it = function it<T>(...args: ItArgs<T>): void {
       },
     });
   }
-} as ItFunction;
+}
 
+/** Registers an individual test case with only set to true. */
 it.only = function itOnly<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   return it({
     ...options,
     only: true,
   });
-} as ItOnlyFunction;
+};
 
+/** Registers an individual test case with ignore set to true. */
 it.ignore = function itIgnore<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   return it({
     ...options,
     ignore: true,
   });
-} as ItIgnoreFunction;
+};
 
 function addHook<T>(
   name: HookNames,
@@ -206,24 +188,28 @@ function addHook<T>(
   }
 }
 
+/** Run some shared setup before all of the tests in the suite. */
 export function beforeAll<T>(
   fn: (context: T) => void | Promise<void>,
 ): void {
   addHook("beforeAll", fn);
 }
 
+/** Run some shared teardown after all of the tests in the suite. */
 export function afterAll<T>(
   fn: (context: T) => void | Promise<void>,
 ): void {
   addHook("afterAll", fn);
 }
 
+/** Run some shared setup before each test in the suite. */
 export function beforeEach<T>(
   fn: (context: T) => void | Promise<void>,
 ): void {
   addHook("beforeEach", fn);
 }
 
+/** Run some shared teardown after each test in the suite. */
 export function afterEach<T>(
   fn: (context: T) => void | Promise<void>,
 ): void {
@@ -288,27 +274,6 @@ type DescribeArgs<T> =
     fn: () => void,
   ];
 
-/** Registers a test suite with only set to true. */
-export interface DescribeOnlyFunction {
-  <T>(...args: DescribeArgs<T>): TestSuite<T>;
-}
-
-/** Registers a test suite with ignore set to true. */
-export interface DescribeIgnoreFunction {
-  <T>(...args: DescribeArgs<T>): TestSuite<T>;
-}
-
-/** Registers a test suite. */
-export interface DescribeFunction {
-  <T>(...args: DescribeArgs<T>): TestSuite<T>;
-
-  /** Registers a test suite with only set to true. */
-  only: DescribeOnlyFunction;
-
-  /** Registers a test suite with ignore set to true. */
-  ignore: DescribeIgnoreFunction;
-}
-
 /** Generates a DescribeDefinition from DescribeArgs. */
 function describeDefinition<T>(
   ...args: DescribeArgs<T>
@@ -368,14 +333,16 @@ function describeDefinition<T>(
   };
 }
 
-export const describe = function describe<T>(
+/** Registers a test suite. */
+export function describe<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
   const options = describeDefinition(...args);
   if (!TestSuite.started) TestSuite.started = true;
   return new TestSuite(options);
-} as DescribeFunction;
+}
 
+/** Registers a test suite with only set to true. */
 describe.only = function describeOnly<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
@@ -384,8 +351,9 @@ describe.only = function describeOnly<T>(
     ...options,
     only: true,
   });
-} as DescribeOnlyFunction;
+};
 
+/** Registers a test suite with ignore set to true. */
 describe.ignore = function describeIgnore<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
@@ -394,4 +362,4 @@ describe.ignore = function describeIgnore<T>(
     ...options,
     ignore: true,
   });
-} as DescribeIgnoreFunction;
+};

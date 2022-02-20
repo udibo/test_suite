@@ -8,12 +8,6 @@ export {
 } from "./describe.ts";
 export type {
   DescribeDefinition,
-  DescribeFunction,
-  DescribeIgnoreFunction,
-  DescribeOnlyFunction,
   ItDefinition,
-  ItFunction,
-  ItIgnoreFunction,
-  ItOnlyFunction,
   TestSuite,
 } from "./describe.ts";
