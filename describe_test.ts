@@ -80,6 +80,7 @@ Deno.test("global", async (t) => {
 
   await t.step("global hooks", async () => {
     const test = stub(Deno, "test"),
+      time = new FakeTime(),
       fns = [spy(), spy()],
       beforeAllFn = spy((context: GlobalContext) => {
         context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
@@ -94,7 +95,6 @@ Deno.test("global", async (t) => {
         clearTimeout(eachTimer);
       });
 
-    const time = new FakeTime();
     try {
       beforeAll(beforeAllFn);
       afterAll(afterAllFn);
@@ -120,6 +120,7 @@ Deno.test("global", async (t) => {
       assertSpyCalls(context.spies.step, 2);
     } finally {
       TestSuite.reset();
+      test.restore();
       time.restore();
     }
 
