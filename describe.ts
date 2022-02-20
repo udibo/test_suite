@@ -128,6 +128,11 @@ export interface it {
 
 /** Registers an individual test case. */
 export function it<T>(...args: ItArgs<T>): void {
+  if (TestSuite.running) {
+    throw new Error(
+      "cannot register new test cases after already registered test cases start running",
+    );
+  }
   const options = itDefinition(...args);
   let { suite } = options;
 
@@ -156,6 +161,7 @@ export function it<T>(...args: ItArgs<T>): void {
       sanitizeOps,
       sanitizeResources,
       fn: async () => {
+        if (!TestSuite.running) TestSuite.running = true;
         await fn!({} as T);
       },
     });
@@ -357,6 +363,11 @@ export interface describe {
 export function describe<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
+  if (TestSuite.running) {
+    throw new Error(
+      "cannot register new test suites after already registered test cases start running",
+    );
+  }
   const options = describeDefinition(...args);
   if (!TestSuite.started) TestSuite.started = true;
   return new TestSuite(options);

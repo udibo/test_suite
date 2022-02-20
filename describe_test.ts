@@ -79,7 +79,6 @@ Deno.test("global", async (t) => {
   }
 
   await t.step("global hooks", async () => {
-    TestSuite.reset();
     const test = stub(Deno, "test"),
       fns = [spy(), spy()],
       beforeAllFn = spy((context: GlobalContext) => {
@@ -95,6 +94,7 @@ Deno.test("global", async (t) => {
         clearTimeout(eachTimer);
       });
 
+    const time = new FakeTime();
     try {
       beforeAll(beforeAllFn);
       afterAll(afterAllFn);
@@ -104,27 +104,22 @@ Deno.test("global", async (t) => {
 
       assertEquals(it({ name: "example 1", fn: fns[0] }), undefined);
       assertEquals(it({ name: "example 2", fn: fns[1] }), undefined);
-    } finally {
-      TestSuite.reset();
-      test.restore();
-    }
 
-    assertSpyCalls(fns[0], 0);
-    assertSpyCalls(fns[1], 0);
+      assertSpyCalls(fns[0], 0);
+      assertSpyCalls(fns[1], 0);
 
-    const call = assertSpyCall(test, 0);
-    const options = call.args[0] as Deno.TestDefinition;
-    assertEquals(Object.keys(options).sort(), ["fn", "name"]);
-    assertEquals(options.name, "global");
+      const call = assertSpyCall(test, 0);
+      const options = call.args[0] as Deno.TestDefinition;
+      assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+      assertEquals(options.name, "global");
 
-    const time = new FakeTime();
-    try {
       const context = new TestContext();
       const result = options.fn(context);
       assertStrictEquals(Promise.resolve(result), result);
       assertEquals(await result, undefined);
       assertSpyCalls(context.spies.step, 2);
     } finally {
+      TestSuite.reset();
       time.restore();
     }
 
@@ -151,22 +146,6 @@ Deno.test("global", async (t) => {
   });
 
   await t.step("it", async (t) => {
-    async function assertOptionsFn(
-      options: Deno.TestDefinition,
-      fn: Spy<void>,
-    ): Promise<void> {
-      const context = new TestContext();
-      const result = options.fn(context);
-      assertStrictEquals(Promise.resolve(result), result);
-      assertEquals(await result, undefined);
-      assertSpyCalls(context.spies.step, 0);
-      assertSpyCall(fn, 0, {
-        self: undefined,
-        args: [{}],
-        returned: undefined,
-      });
-    }
-
     async function assertOptions<T>(
       expectedOptions: Omit<Deno.TestDefinition, "name" | "fn">,
       cb: (fn: Spy<void>) => void,
@@ -175,21 +154,33 @@ Deno.test("global", async (t) => {
       const fn = spy();
       try {
         cb(fn);
+
+        assertSpyCalls(fn, 0);
+        const call = assertSpyCall(test, 0);
+        const options = call.args[0] as Deno.TestDefinition;
+        assertEquals(
+          Object.keys(options).sort(),
+          ["name", "fn", ...Object.keys(expectedOptions)].sort(),
+        );
+        assertObjectMatch(options, {
+          name: "example",
+          ...expectedOptions,
+        });
+
+        const context = new TestContext();
+        const result = options.fn(context);
+        assertStrictEquals(Promise.resolve(result), result);
+        assertEquals(await result, undefined);
+        assertSpyCalls(context.spies.step, 0);
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{}],
+          returned: undefined,
+        });
       } finally {
+        TestSuite.reset();
         test.restore();
       }
-      assertSpyCalls(fn, 0);
-      const call = assertSpyCall(test, 0);
-      const options = call.args[0] as Deno.TestDefinition;
-      assertEquals(
-        Object.keys(options).sort(),
-        ["name", "fn", ...Object.keys(expectedOptions)].sort(),
-      );
-      assertObjectMatch(options, {
-        name: "example",
-        ...expectedOptions,
-      });
-      await assertOptionsFn(options, fn);
     }
 
     async function assertMinimumOptions(
@@ -624,35 +615,6 @@ Deno.test("global", async (t) => {
   });
 
   await t.step("describe", async (t) => {
-    async function assertOptionsFn(
-      options: Deno.TestDefinition,
-      fns: Spy<void>[],
-    ): Promise<void> {
-      assertSpyCalls(fns[0], 0);
-      assertSpyCalls(fns[1], 0);
-
-      const context = new TestContext();
-      const result = options.fn(context);
-      assertStrictEquals(Promise.resolve(result), result);
-      assertEquals(await result, undefined);
-      assertSpyCalls(context.spies.step, 2);
-
-      let fn = fns[0];
-      assertSpyCall(fn, 0, {
-        self: undefined,
-        args: [{}],
-        returned: undefined,
-      });
-
-      fn = fns[1];
-      assertSpyCall(fn, 0, {
-        self: undefined,
-        args: [{}],
-        returned: undefined,
-      });
-      assertSpyCalls(fn, 1);
-    }
-
     async function assertOptions(
       expectedOptions: Omit<Deno.TestDefinition, "name" | "fn">,
       cb: (fns: Spy<void>[]) => void,
@@ -661,21 +623,45 @@ Deno.test("global", async (t) => {
       const fns = [spy(), spy()];
       try {
         cb(fns);
+
+        const call = assertSpyCall(test, 0);
+        const options = call.args[0] as Deno.TestDefinition;
+        assertEquals(
+          Object.keys(options).sort(),
+          ["name", "fn", ...Object.keys(expectedOptions)].sort(),
+        );
+        assertObjectMatch(options, {
+          name: "example",
+          ...expectedOptions,
+        });
+
+        assertSpyCalls(fns[0], 0);
+        assertSpyCalls(fns[1], 0);
+
+        const context = new TestContext();
+        const result = options.fn(context);
+        assertStrictEquals(Promise.resolve(result), result);
+        assertEquals(await result, undefined);
+        assertSpyCalls(context.spies.step, 2);
+
+        let fn = fns[0];
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{}],
+          returned: undefined,
+        });
+
+        fn = fns[1];
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{}],
+          returned: undefined,
+        });
+        assertSpyCalls(fn, 1);
       } finally {
+        TestSuite.reset();
         test.restore();
       }
-
-      const call = assertSpyCall(test, 0);
-      const options = call.args[0] as Deno.TestDefinition;
-      assertEquals(
-        Object.keys(options).sort(),
-        ["name", "fn", ...Object.keys(expectedOptions)].sort(),
-      );
-      assertObjectMatch(options, {
-        name: "example",
-        ...expectedOptions,
-      });
-      await assertOptionsFn(options, fns);
     }
 
     async function assertMinimumOptions(
@@ -1235,34 +1221,6 @@ Deno.test("global", async (t) => {
     });
 
     await t.step("nested only", async (t) => {
-      async function assertOptionsFn(
-        options: Deno.TestDefinition,
-        fns: Spy<void>[],
-      ): Promise<void> {
-        assertSpyCalls(fns[0], 0);
-        assertSpyCalls(fns[1], 0);
-
-        const context = new TestContext();
-        const result = options.fn(context);
-        assertStrictEquals(Promise.resolve(result), result);
-        assertEquals(await result, undefined);
-        assertSpyCalls(context.spies.step, 1);
-
-        let fn = fns[0];
-        assertSpyCalls(fn, 0);
-
-        fn = fns[1];
-        assertSpyCall(fn, 0, {
-          self: undefined,
-          args: [{}],
-          returned: undefined,
-        });
-        assertSpyCalls(fn, 1);
-
-        fn = fns[2];
-        assertSpyCalls(fn, 0);
-      }
-
       async function assertOnly(
         cb: (fns: Spy<void>[]) => void,
       ): Promise<void> {
@@ -1270,20 +1228,43 @@ Deno.test("global", async (t) => {
         const fns = [spy(), spy(), spy()];
         try {
           cb(fns);
+
+          const call = assertSpyCall(test, 0);
+          const options = call.args[0] as Deno.TestDefinition;
+          assertEquals(
+            Object.keys(options).sort(),
+            ["name", "fn"].sort(),
+          );
+          assertObjectMatch(options, {
+            name: "example",
+          });
+
+          assertSpyCalls(fns[0], 0);
+          assertSpyCalls(fns[1], 0);
+
+          const context = new TestContext();
+          const result = options.fn(context);
+          assertStrictEquals(Promise.resolve(result), result);
+          assertEquals(await result, undefined);
+          assertSpyCalls(context.spies.step, 1);
+
+          let fn = fns[0];
+          assertSpyCalls(fn, 0);
+
+          fn = fns[1];
+          assertSpyCall(fn, 0, {
+            self: undefined,
+            args: [{}],
+            returned: undefined,
+          });
+          assertSpyCalls(fn, 1);
+
+          fn = fns[2];
+          assertSpyCalls(fn, 0);
         } finally {
+          TestSuite.reset();
           test.restore();
         }
-
-        const call = assertSpyCall(test, 0);
-        const options = call.args[0] as Deno.TestDefinition;
-        assertEquals(
-          Object.keys(options).sort(),
-          ["name", "fn"].sort(),
-        );
-        assertObjectMatch(options, {
-          name: "example",
-        });
-        await assertOptionsFn(options, fns);
       }
 
       await t.step("it", async () =>
@@ -1343,7 +1324,6 @@ Deno.test("global", async (t) => {
           },
         ) => void,
       ) {
-        TestSuite.reset();
         const test = stub(Deno, "test"),
           fns = [spy(), spy()],
           beforeAllFn = spy((context: GlobalContext) => {
@@ -1359,29 +1339,26 @@ Deno.test("global", async (t) => {
             clearTimeout(eachTimer);
           });
 
-        try {
-          cb({ beforeAllFn, afterAllFn, beforeEachFn, afterEachFn, fns });
-        } finally {
-          TestSuite.reset();
-          test.restore();
-        }
-
-        assertSpyCalls(fns[0], 0);
-        assertSpyCalls(fns[1], 0);
-
-        const call = assertSpyCall(test, 0);
-        const options = call.args[0] as Deno.TestDefinition;
-        assertEquals(Object.keys(options).sort(), ["fn", "name"]);
-        assertEquals(options.name, "example");
-
         const time = new FakeTime();
         try {
+          cb({ beforeAllFn, afterAllFn, beforeEachFn, afterEachFn, fns });
+
+          assertSpyCalls(fns[0], 0);
+          assertSpyCalls(fns[1], 0);
+
+          const call = assertSpyCall(test, 0);
+          const options = call.args[0] as Deno.TestDefinition;
+          assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+          assertEquals(options.name, "example");
+
           const context = new TestContext();
           const result = options.fn(context);
           assertStrictEquals(Promise.resolve(result), result);
           assertEquals(await result, undefined);
           assertSpyCalls(context.spies.step, 2);
         } finally {
+          TestSuite.reset();
+          test.restore();
           time.restore();
         }
 
@@ -1455,8 +1432,8 @@ Deno.test("global", async (t) => {
       await t.step(
         "nested",
         async () => {
-          TestSuite.reset();
           const test = stub(Deno, "test"),
+            time = new FakeTime(),
             fns = [spy(), spy()],
             beforeAllFn = spy((context: GlobalContext) => {
               context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
@@ -1484,21 +1461,15 @@ Deno.test("global", async (t) => {
                 assertEquals(it({ name: "example 2", fn: fns[1] }), undefined);
               });
             });
-          } finally {
-            TestSuite.reset();
-            test.restore();
-          }
 
-          assertSpyCalls(fns[0], 0);
-          assertSpyCalls(fns[1], 0);
+            assertSpyCalls(fns[0], 0);
+            assertSpyCalls(fns[1], 0);
 
-          const call = assertSpyCall(test, 0);
-          const options = call.args[0] as Deno.TestDefinition;
-          assertEquals(Object.keys(options).sort(), ["fn", "name"]);
-          assertEquals(options.name, "example");
+            const call = assertSpyCall(test, 0);
+            const options = call.args[0] as Deno.TestDefinition;
+            assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+            assertEquals(options.name, "example");
 
-          const time = new FakeTime();
-          try {
             let context = new TestContext();
             const result = options.fn(context);
             assertStrictEquals(Promise.resolve(result), result);
@@ -1510,6 +1481,8 @@ Deno.test("global", async (t) => {
             assertEquals(await result, undefined);
             assertSpyCalls(context.spies.step, 2);
           } finally {
+            TestSuite.reset();
+            test.restore();
             time.restore();
           }
 
@@ -1544,8 +1517,8 @@ Deno.test("global", async (t) => {
       await t.step(
         "nested with hooks",
         async () => {
-          TestSuite.reset();
           const test = stub(Deno, "test"),
+            time = new FakeTime(),
             fns = [spy(), spy()],
             beforeAllFn = spy((context: GlobalContext) => {
               context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
@@ -1597,21 +1570,15 @@ Deno.test("global", async (t) => {
                 assertEquals(it({ name: "example 2", fn: fns[1] }), undefined);
               });
             });
-          } finally {
-            TestSuite.reset();
-            test.restore();
-          }
 
-          assertSpyCalls(fns[0], 0);
-          assertSpyCalls(fns[1], 0);
+            assertSpyCalls(fns[0], 0);
+            assertSpyCalls(fns[1], 0);
 
-          const call = assertSpyCall(test, 0);
-          const options = call.args[0] as Deno.TestDefinition;
-          assertEquals(Object.keys(options).sort(), ["fn", "name"]);
-          assertEquals(options.name, "example");
+            const call = assertSpyCall(test, 0);
+            const options = call.args[0] as Deno.TestDefinition;
+            assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+            assertEquals(options.name, "example");
 
-          const time = new FakeTime();
-          try {
             let context = new TestContext();
             const result = options.fn(context);
             assertStrictEquals(Promise.resolve(result), result);
@@ -1623,6 +1590,8 @@ Deno.test("global", async (t) => {
             assertEquals(await result, undefined);
             assertSpyCalls(context.spies.step, 2);
           } finally {
+            TestSuite.reset();
+            test.restore();
             time.restore();
           }
 

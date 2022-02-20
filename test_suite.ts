@@ -99,6 +99,7 @@ export class TestSuite<T> {
         sanitizeOps,
         sanitizeResources,
         fn: async (t) => {
+          if (!TestSuite.running) TestSuite.running = true;
           const context = {} as T;
           if (this.describe.beforeAll) {
             this.describe.beforeAll(context);
@@ -117,6 +118,9 @@ export class TestSuite<T> {
     }
   }
 
+  /** If the test cases have begun executing. */
+  static running = false;
+
   /** If a test has been registered yet. Block adding global hooks if a test has been registered. */
   static started = false;
 
@@ -130,6 +134,7 @@ export class TestSuite<T> {
 
   /** This is used internally for testing this module. */
   static reset(): void {
+    TestSuite.running = false;
     TestSuite.started = false;
     TestSuite.current = null;
     TestSuite.active = new Vector();
