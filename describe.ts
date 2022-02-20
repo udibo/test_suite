@@ -580,7 +580,7 @@ export interface DescribeFunction {
 }
 
 /** Generates a DescribeDefinition from DescribeArgs. */
-export function describeDefinition<T>(
+function describeDefinition<T>(
   ...args: DescribeArgs<T>
 ): DescribeDefinition<T> {
   let [
