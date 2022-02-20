@@ -11,8 +11,8 @@ import {
   beforeEach,
   describe,
   it,
-  TestSuite,
 } from "./describe.ts";
+import { TestSuite } from "./test_suite.ts";
 import {
   assertSpyCall,
   assertSpyCalls,

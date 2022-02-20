@@ -5,7 +5,6 @@ export {
   beforeEach,
   describe,
   it,
-  TestSuite,
 } from "./describe.ts";
 export type {
   DescribeDefinition,
@@ -16,4 +15,5 @@ export type {
   ItFunction,
   ItIgnoreFunction,
   ItOnlyFunction,
+  TestSuite,
 } from "./describe.ts";
