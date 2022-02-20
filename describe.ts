@@ -126,6 +126,7 @@ export interface it {
   ignore<T>(...args: ItArgs<T>): void;
 }
 
+/** Registers an individual test case. */
 export function it<T>(...args: ItArgs<T>): void {
   const options = itDefinition(...args);
   let { suite } = options;
@@ -352,6 +353,7 @@ export interface describe {
   ignore<T>(...args: DescribeArgs<T>): TestSuite<T>;
 }
 
+/** Registers a test suite. */
 export function describe<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
@@ -360,7 +362,6 @@ export function describe<T>(
   return new TestSuite(options);
 }
 
-/** Registers a test suite with only set to true. */
 describe.only = function describeOnly<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
@@ -371,7 +372,6 @@ describe.only = function describeOnly<T>(
   });
 };
 
-/** Registers a test suite with ignore set to true. */
 describe.ignore = function describeIgnore<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {
