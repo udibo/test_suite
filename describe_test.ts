@@ -1,1034 +1,1638 @@
-import { assert, assertEquals, delay } from "./deps.ts";
-import { Spy, spy, Stub, stub } from "./test_deps.ts";
-import { TestSuite } from "./test_suite.ts";
+import {
+  assert,
+  assertEquals,
+  assertObjectMatch,
+  assertStrictEquals,
+} from "./deps.ts";
 import {
   afterAll,
   afterEach,
   beforeAll,
   beforeEach,
   describe,
-  each,
   it,
 } from "./describe.ts";
-
-function testDefinition(
-  options: Deno.TestDefinition,
-): Partial<Deno.TestDefinition> {
-  const rslt: Partial<Deno.TestDefinition> = { ...options };
-  delete rslt.fn;
-  return rslt;
-}
-
-Deno.test("global it no options", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [
-    spy(),
-    spy(async () => await delay(1)),
-    spy(),
-    spy(async () => await delay(1)),
-  ];
-
-  try {
-    TestSuite.reset();
-
-    it("global test 1", testSpys[0]);
-    assertEquals(registerTestStub.calls.length, 1);
-    assertEquals(registerTestStub.calls[0].args.length, 1);
-    assertEquals(
-      testDefinition(registerTestStub.calls[0].args[0]),
-      { name: "global test 1" },
-    );
-
-    it("global test 2", testSpys[1]);
-    assertEquals(registerTestStub.calls.length, 2);
-    assertEquals(registerTestStub.calls[1].args.length, 1);
-    assertEquals(
-      testDefinition(registerTestStub.calls[1].args[0]),
-      { name: "global test 2" },
-    );
-
-    it({
-      name: "global test 3",
-      fn: testSpys[2],
-    });
-    assertEquals(registerTestStub.calls.length, 3);
-    assertEquals(registerTestStub.calls[2].args.length, 1);
-    assertEquals(
-      testDefinition(registerTestStub.calls[2].args[0]),
-      { name: "global test 3" },
-    );
-
-    it({
-      name: "global test 4",
-      fn: testSpys[3],
-    });
-    assertEquals(registerTestStub.calls.length, 4);
-    assertEquals(registerTestStub.calls[3].args.length, 1);
-    assertEquals(
-      testDefinition(registerTestStub.calls[3].args[0]),
-      { name: "global test 4" },
-    );
-
-    assertEquals(testSpys[0].calls.length, 0);
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[0].calls[0].args, [{}]);
-
-    assertEquals(testSpys[1].calls.length, 0);
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(testSpys[1].calls.length, 1);
-    assertEquals(testSpys[1].calls[0].args, [{}]);
-
-    assertEquals(testSpys[2].calls.length, 0);
-    await registerTestStub.calls[2].args[0].fn();
-    assertEquals(testSpys[2].calls.length, 1);
-    assertEquals(testSpys[2].calls[0].args, [{}]);
-
-    assertEquals(testSpys[3].calls.length, 0);
-    await registerTestStub.calls[3].args[0].fn();
-    assertEquals(testSpys[3].calls.length, 1);
-    assertEquals(testSpys[3].calls[0].args, [{}]);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("global it with options", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [
-    spy(),
-    spy(async () => await delay(1)),
-  ];
-
-  try {
-    TestSuite.reset();
-
-    it({
-      name: "global test 1",
-      fn: testSpys[0],
-      ignore: false,
-      only: false,
-      sanitizeOps: false,
-      sanitizeResources: false,
-      sanitizeExit: false,
-    });
-    assertEquals(registerTestStub.calls.length, 1);
-    assertEquals(registerTestStub.calls[0].args.length, 1);
-    assertEquals(
-      testDefinition(registerTestStub.calls[0].args[0]),
-      {
-        name: "global test 1",
-        ignore: false,
-        only: false,
-        sanitizeOps: false,
-        sanitizeResources: false,
-        sanitizeExit: false,
-      },
-    );
-
-    it({
-      name: "global test 2",
-      fn: testSpys[1],
-      ignore: true,
-      only: true,
-      sanitizeOps: true,
-      sanitizeExit: true,
-    });
-    assertEquals(registerTestStub.calls.length, 2);
-    assertEquals(registerTestStub.calls[1].args.length, 1);
-    assertEquals(
-      testDefinition(registerTestStub.calls[1].args[0]),
-      {
-        name: "global test 2",
-        ignore: true,
-        only: true,
-        sanitizeOps: true,
-        sanitizeExit: true,
-      },
-    );
-
-    assertEquals(testSpys[0].calls.length, 0);
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[0].calls[0].args, [{}]);
-
-    assertEquals(testSpys[1].calls.length, 0);
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(testSpys[1].calls.length, 1);
-    assertEquals(testSpys[1].calls[0].args, [{}]);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("top level describe it no options", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [
-    spy(),
-    spy(async () => await delay(1)),
-    spy(),
-    spy(async () => await delay(1)),
-  ];
-
-  try {
-    TestSuite.reset();
-
-    describe("top level suite A", () => {
-      it("test 1", testSpys[0]);
-      assertEquals(registerTestStub.calls.length, 1);
-      assertEquals(registerTestStub.calls[0].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[0].args[0]),
-        { name: "top level suite A test 1" },
-      );
-
-      it("test 2", testSpys[1]);
-      assertEquals(registerTestStub.calls.length, 2);
-      assertEquals(registerTestStub.calls[1].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[1].args[0]),
-        { name: "top level suite A test 2" },
-      );
-    });
-
-    describe("top level suite B", () => {
-      it({
-        name: "test 1",
-        fn: testSpys[2],
-      });
-      assertEquals(registerTestStub.calls.length, 3);
-      assertEquals(registerTestStub.calls[2].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[2].args[0]),
-        { name: "top level suite B test 1" },
-      );
-
-      it({
-        name: "test 2",
-        fn: testSpys[3],
-      });
-      assertEquals(registerTestStub.calls.length, 4);
-      assertEquals(registerTestStub.calls[3].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[3].args[0]),
-        { name: "top level suite B test 2" },
-      );
-    });
-
-    assertEquals(testSpys[0].calls.length, 0);
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[0].calls[0].args, [{}]);
-
-    assertEquals(testSpys[1].calls.length, 0);
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(testSpys[1].calls.length, 1);
-    assertEquals(testSpys[1].calls[0].args, [{}]);
-
-    assertEquals(testSpys[2].calls.length, 0);
-    await registerTestStub.calls[2].args[0].fn();
-    assertEquals(testSpys[2].calls.length, 1);
-    assertEquals(testSpys[2].calls[0].args, [{}]);
-
-    assertEquals(testSpys[3].calls.length, 0);
-    await registerTestStub.calls[3].args[0].fn();
-    assertEquals(testSpys[3].calls.length, 1);
-    assertEquals(testSpys[3].calls[0].args, [{}]);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("top level describe it with options", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [
-    spy(),
-    spy(async () => await delay(1)),
-    spy(),
-    spy(async () => await delay(1)),
-  ];
-
-  try {
-    TestSuite.reset();
-
-    describe("top level suite A", () => {
-      it({
-        name: "test 1",
-        fn: testSpys[0],
-        ignore: false,
-        only: false,
-        sanitizeOps: false,
-        sanitizeResources: false,
-        sanitizeExit: false,
-      });
-      assertEquals(registerTestStub.calls.length, 1);
-      assertEquals(registerTestStub.calls[0].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[0].args[0]),
-        {
-          name: "top level suite A test 1",
-          ignore: false,
-          only: false,
-          sanitizeOps: false,
-          sanitizeResources: false,
-          sanitizeExit: false,
-        },
-      );
-
-      it({
-        name: "test 2",
-        fn: testSpys[1],
-        ignore: true,
-        only: true,
-        sanitizeOps: true,
-        sanitizeResources: true,
-        sanitizeExit: true,
-      });
-      assertEquals(registerTestStub.calls.length, 2);
-      assertEquals(registerTestStub.calls[1].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[1].args[0]),
-        {
-          name: "top level suite A test 2",
-          ignore: true,
-          only: true,
-          sanitizeOps: true,
-          sanitizeResources: true,
-          sanitizeExit: true,
-        },
-      );
-    });
-
-    describe({
-      name: "top level suite B",
-      ignore: false,
-      only: true,
-      sanitizeOps: false,
-      sanitizeResources: true,
-      sanitizeExit: false,
-      fn() {
-        it({
-          name: "test 1",
-          fn: testSpys[2],
-        });
-        assertEquals(registerTestStub.calls.length, 3);
-        assertEquals(registerTestStub.calls[2].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[2].args[0]),
-          {
-            name: "top level suite B test 1",
-            ignore: false,
-            only: true,
-            sanitizeOps: false,
-            sanitizeResources: true,
-            sanitizeExit: false,
-          },
-        );
-
-        it({
-          name: "test 2",
-          fn: testSpys[3],
-          ignore: true,
-          only: false,
-        });
-        assertEquals(registerTestStub.calls.length, 4);
-        assertEquals(registerTestStub.calls[3].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[3].args[0]),
-          {
-            name: "top level suite B test 2",
-            ignore: true,
-            only: false,
-            sanitizeOps: false,
-            sanitizeResources: true,
-            sanitizeExit: false,
-          },
-        );
-      },
-    });
-
-    assertEquals(testSpys[0].calls.length, 0);
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[0].calls[0].args, [{}]);
-
-    assertEquals(testSpys[1].calls.length, 0);
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(testSpys[1].calls.length, 1);
-    assertEquals(testSpys[1].calls[0].args, [{}]);
-
-    assertEquals(testSpys[2].calls.length, 0);
-    await registerTestStub.calls[2].args[0].fn();
-    assertEquals(testSpys[2].calls.length, 1);
-    assertEquals(testSpys[2].calls[0].args, [{}]);
-
-    assertEquals(testSpys[3].calls.length, 0);
-    await registerTestStub.calls[3].args[0].fn();
-    assertEquals(testSpys[3].calls.length, 1);
-    assertEquals(testSpys[3].calls[0].args, [{}]);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("top level describe it hooks", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [];
-
-  try {
-    TestSuite.reset();
-
-    let beforeAllHook: Spy<void> | null = null;
-    let beforeEachHook: Spy<void> | null = null;
-    let afterEachHook: Spy<void> | null = null;
-    let afterAllHook: Spy<void> | null = null;
-    describe("top level suite", () => {
-      let a: number;
-      let b: string;
-      let timer: number;
-
-      beforeAllHook = spy(() => {
-        assertEquals(beforeEachHook?.calls.length, 0);
-        a = 3;
-        b = "";
-        timer = setTimeout(() => {
-          throw new Error("Timeout not cleared");
-        }, Math.pow(2, 31) - 1);
-      });
-      beforeEachHook = spy(() => {
-        assertEquals({ a, b }, { a: 3, b: "" });
-        assertEquals(beforeAllHook?.calls.length, 1);
-        a *= 4;
-        b = "example";
-      });
-      let expectedBeforeEachCalls = 1;
-      afterEachHook = spy(() => {
-        assertEquals({ a, b }, { a: 12, b: "example" });
-        a /= 4;
-        b = "";
-        assertEquals(beforeAllHook?.calls.length, 1);
-        assertEquals(beforeEachHook?.calls.length, expectedBeforeEachCalls++);
-        assertEquals(afterAllHook?.calls.length, 0);
-      });
-      afterAllHook = spy(() => {
-        assertEquals({ a, b }, { a: 3, b: "" });
-        assertEquals(beforeAllHook?.calls.length, 1);
-        assertEquals(beforeEachHook?.calls.length, 2);
-        assertEquals(afterEachHook?.calls.length, 2);
-        clearTimeout(timer);
-      });
-      beforeAll(beforeAllHook);
-      beforeEach(beforeEachHook);
-      afterEach(afterEachHook);
-      afterAll(afterAllHook);
-
-      testSpys.push(
-        spy(() => {
-          assertEquals({ a, b }, { a: 12, b: "example" });
-          assertEquals(beforeAllHook?.calls.length, 1);
-          assertEquals(beforeEachHook?.calls.length, 1);
-          assertEquals(afterEachHook?.calls.length, 0);
-          assertEquals(afterAllHook?.calls.length, 0);
-        }),
-        spy(async () => {
-          assertEquals({ a, b }, { a: 12, b: "example" });
-          assertEquals(beforeAllHook?.calls.length, 1);
-          assertEquals(beforeEachHook?.calls.length, 2);
-          assertEquals(afterEachHook?.calls.length, 1);
-          assertEquals(afterAllHook?.calls.length, 0);
-          await delay(1);
-        }),
-      );
-
-      it("test 1", testSpys[0]);
-      assertEquals(registerTestStub.calls.length, 1);
-      assertEquals(registerTestStub.calls[0].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[0].args[0]),
-        { name: "top level suite test 1" },
-      );
-
-      it("test 2", testSpys[1]);
-      assertEquals(registerTestStub.calls.length, 2);
-      assertEquals(registerTestStub.calls[1].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[1].args[0]),
-        { name: "top level suite test 2" },
-      );
-    });
-
-    assert(beforeAllHook !== null);
-    assert(beforeEachHook !== null);
-    assert(afterEachHook !== null);
-    assert(afterAllHook !== null);
-    beforeAllHook = beforeAllHook as Spy<void>;
-    beforeEachHook = beforeEachHook as Spy<void>;
-    afterEachHook = afterEachHook as Spy<void>;
-    afterAllHook = afterAllHook as Spy<void>;
-
-    assertEquals(beforeAllHook!.calls.length, 0);
-    assertEquals(beforeEachHook!.calls.length, 0);
-    assertEquals(afterEachHook!.calls.length, 0);
-    assertEquals(afterAllHook!.calls.length, 0);
-    assertEquals(testSpys[0].calls.length, 0);
-    assertEquals(testSpys[1].calls.length, 0);
-
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(beforeAllHook!.calls.length, 1);
-    assertEquals(beforeEachHook!.calls.length, 1);
-    assertEquals(afterEachHook!.calls.length, 1);
-    assertEquals(afterAllHook!.calls.length, 0);
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[1].calls.length, 0);
-
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(beforeAllHook!.calls.length, 1);
-    assertEquals(beforeEachHook!.calls.length, 2);
-    assertEquals(afterEachHook!.calls.length, 2);
-    assertEquals(afterAllHook!.calls.length, 1);
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[1].calls.length, 1);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("top level describe it async hooks", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [];
-
-  try {
-    TestSuite.reset();
-
-    let beforeAllHook: Spy<void> | null = null;
-    let beforeEachHook: Spy<void> | null = null;
-    let afterEachHook: Spy<void> | null = null;
-    let afterAllHook: Spy<void> | null = null;
-    describe("top level suite", () => {
-      let a: number;
-      let b: string;
-      let timer: number;
-
-      beforeAllHook = spy(async () => {
-        assertEquals(beforeEachHook?.calls.length, 0);
-        await delay(1);
-        a = 3;
-        b = "";
-        timer = setTimeout(() => {
-          throw new Error("Timeout not cleared");
-        }, Math.pow(2, 31) - 1);
-      });
-      beforeEachHook = spy(async () => {
-        assertEquals({ a, b }, { a: 3, b: "" });
-        assertEquals(beforeAllHook?.calls.length, 1);
-        await delay(1);
-        a *= 4;
-        b = "example";
-      });
-      let expectedBeforeEachCalls = 1;
-      afterEachHook = spy(async () => {
-        assertEquals({ a, b }, { a: 12, b: "example" });
-        a /= 4;
-        b = "";
-        assertEquals(beforeAllHook?.calls.length, 1);
-        assertEquals(beforeEachHook?.calls.length, expectedBeforeEachCalls++);
-        assertEquals(afterAllHook?.calls.length, 0);
-        await delay(1);
-      });
-      afterAllHook = spy(async () => {
-        assertEquals({ a, b }, { a: 3, b: "" });
-        assertEquals(beforeAllHook?.calls.length, 1);
-        assertEquals(beforeEachHook?.calls.length, 2);
-        assertEquals(afterEachHook?.calls.length, 2);
-        await delay(1);
-        clearTimeout(timer);
-      });
-
-      beforeAll(beforeAllHook);
-      beforeEach(beforeEachHook);
-      afterEach(afterEachHook);
-      afterAll(afterAllHook);
-
-      testSpys.push(
-        spy(() => {
-          assertEquals({ a, b }, { a: 12, b: "example" });
-          assertEquals(beforeAllHook?.calls.length, 1);
-          assertEquals(beforeEachHook?.calls.length, 1);
-          assertEquals(afterEachHook?.calls.length, 0);
-          assertEquals(afterAllHook?.calls.length, 0);
-        }),
-        spy(async () => {
-          assertEquals({ a, b }, { a: 12, b: "example" });
-          assertEquals(beforeAllHook?.calls.length, 1);
-          assertEquals(beforeEachHook?.calls.length, 2);
-          assertEquals(afterEachHook?.calls.length, 1);
-          assertEquals(afterAllHook?.calls.length, 0);
-          await delay(1);
-        }),
-      );
-
-      it("test 1", testSpys[0]);
-      assertEquals(registerTestStub.calls.length, 1);
-      assertEquals(registerTestStub.calls[0].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[0].args[0]),
-        { name: "top level suite test 1" },
-      );
-
-      it("test 2", testSpys[1]);
-      assertEquals(registerTestStub.calls.length, 2);
-      assertEquals(registerTestStub.calls[1].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[1].args[0]),
-        { name: "top level suite test 2" },
-      );
-    });
-
-    assert(beforeAllHook !== null);
-    assert(beforeEachHook !== null);
-    assert(afterEachHook !== null);
-    assert(afterAllHook !== null);
-    beforeAllHook = beforeAllHook as Spy<void>;
-    beforeEachHook = beforeEachHook as Spy<void>;
-    afterEachHook = afterEachHook as Spy<void>;
-    afterAllHook = afterAllHook as Spy<void>;
-
-    assertEquals(beforeAllHook!.calls.length, 0);
-    assertEquals(beforeEachHook!.calls.length, 0);
-    assertEquals(afterEachHook!.calls.length, 0);
-    assertEquals(afterAllHook!.calls.length, 0);
-    assertEquals(testSpys[0].calls.length, 0);
-    assertEquals(testSpys[1].calls.length, 0);
-
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(beforeAllHook!.calls.length, 1);
-    assertEquals(beforeEachHook!.calls.length, 1);
-    assertEquals(afterEachHook!.calls.length, 1);
-    assertEquals(afterAllHook!.calls.length, 0);
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[1].calls.length, 0);
-
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(beforeAllHook!.calls.length, 1);
-    assertEquals(beforeEachHook!.calls.length, 2);
-    assertEquals(afterEachHook!.calls.length, 2);
-    assertEquals(afterAllHook!.calls.length, 1);
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[1].calls.length, 1);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("multi level describe it no options", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [
-    spy(),
-    spy(async () => await delay(1)),
-    spy(),
-    spy(async () => await delay(1)),
-    spy(),
-    spy(async () => await delay(1)),
-  ];
-
-  try {
-    TestSuite.reset();
-
-    describe("top level suite A", () => {
-      it("test 1", testSpys[0]);
-      assertEquals(registerTestStub.calls.length, 1);
-      assertEquals(registerTestStub.calls[0].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[0].args[0]),
-        { name: "top level suite A test 1" },
-      );
-
-      describe("sub-suite B", () => {
-        it({
-          name: "test 1",
-          fn: testSpys[1],
-        });
-        assertEquals(registerTestStub.calls.length, 2);
-        assertEquals(registerTestStub.calls[1].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[1].args[0]),
-          { name: "top level suite A sub-suite B test 1" },
-        );
-
-        it({
-          name: "test 2",
-          fn: testSpys[2],
-        });
-        assertEquals(registerTestStub.calls.length, 3);
-        assertEquals(registerTestStub.calls[2].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[2].args[0]),
-          { name: "top level suite A sub-suite B test 2" },
-        );
-      });
-
-      it("test 2", testSpys[3]);
-      assertEquals(registerTestStub.calls.length, 4);
-      assertEquals(registerTestStub.calls[3].args.length, 1);
-      assertEquals(
-        testDefinition(registerTestStub.calls[3].args[0]),
-        { name: "top level suite A test 2" },
-      );
-
-      describe("sub-suite C", () => {
-        it("test 1", testSpys[4]);
-        assertEquals(registerTestStub.calls.length, 5);
-        assertEquals(registerTestStub.calls[4].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[4].args[0]),
-          { name: "top level suite A sub-suite C test 1" },
-        );
-
-        it("test 2", testSpys[5]);
-        assertEquals(registerTestStub.calls.length, 6);
-        assertEquals(registerTestStub.calls[5].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[5].args[0]),
-          { name: "top level suite A sub-suite C test 2" },
-        );
-      });
-    });
-
-    assertEquals(testSpys[0].calls.length, 0);
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[0].calls[0].args, [{}]);
-
-    assertEquals(testSpys[1].calls.length, 0);
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(testSpys[1].calls.length, 1);
-    assertEquals(testSpys[1].calls[0].args, [{}]);
-
-    assertEquals(testSpys[2].calls.length, 0);
-    await registerTestStub.calls[2].args[0].fn();
-    assertEquals(testSpys[2].calls.length, 1);
-    assertEquals(testSpys[2].calls[0].args, [{}]);
-
-    assertEquals(testSpys[3].calls.length, 0);
-    await registerTestStub.calls[3].args[0].fn();
-    assertEquals(testSpys[3].calls.length, 1);
-    assertEquals(testSpys[3].calls[0].args, [{}]);
-
-    assertEquals(testSpys[4].calls.length, 0);
-    await registerTestStub.calls[4].args[0].fn();
-    assertEquals(testSpys[4].calls.length, 1);
-    assertEquals(testSpys[4].calls[0].args, [{}]);
-
-    assertEquals(testSpys[5].calls.length, 0);
-    await registerTestStub.calls[5].args[0].fn();
-    assertEquals(testSpys[5].calls.length, 1);
-    assertEquals(testSpys[5].calls[0].args, [{}]);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("multi level suite tests with options", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpys: Spy<void>[] = [
-    spy(),
-    spy(async () => await delay(1)),
-    spy(),
-    spy(async () => await delay(1)),
-    spy(),
-    spy(async () => await delay(1)),
-  ];
-
-  try {
-    TestSuite.reset();
-
-    describe({
-      name: "top level suite A",
-      ignore: false,
-      only: true,
-      sanitizeOps: false,
-      sanitizeResources: true,
-      sanitizeExit: false,
-      fn() {
-        it("test 1", testSpys[0]);
-        assertEquals(registerTestStub.calls.length, 1);
-        assertEquals(registerTestStub.calls[0].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[0].args[0]),
-          {
-            name: "top level suite A test 1",
-            ignore: false,
-            only: true,
-            sanitizeOps: false,
-            sanitizeResources: true,
-            sanitizeExit: false,
-          },
-        );
-
-        describe({
-          name: "sub-suite B",
-          only: false,
-          sanitizeOps: true,
-          fn() {
-            it({
-              name: "test 1",
-              fn: testSpys[1],
-            });
-            assertEquals(registerTestStub.calls.length, 2);
-            assertEquals(registerTestStub.calls[1].args.length, 1);
-            assertEquals(
-              testDefinition(registerTestStub.calls[1].args[0]),
-              {
-                name: "top level suite A sub-suite B test 1",
-                ignore: false,
-                only: false,
-                sanitizeOps: true,
-                sanitizeResources: true,
-                sanitizeExit: false,
-              },
-            );
-
-            it({
-              name: "test 2",
-              fn: testSpys[2],
-              ignore: true,
-              sanitizeResources: false,
-            });
-            assertEquals(registerTestStub.calls.length, 3);
-            assertEquals(registerTestStub.calls[2].args.length, 1);
-            assertEquals(
-              testDefinition(registerTestStub.calls[2].args[0]),
-              {
-                name: "top level suite A sub-suite B test 2",
-                ignore: true,
-                only: false,
-                sanitizeOps: true,
-                sanitizeResources: false,
-                sanitizeExit: false,
-              },
-            );
-          },
-        });
-
-        it("test 2", testSpys[3]);
-        assertEquals(registerTestStub.calls.length, 4);
-        assertEquals(registerTestStub.calls[3].args.length, 1);
-        assertEquals(
-          testDefinition(registerTestStub.calls[3].args[0]),
-          {
-            name: "top level suite A test 2",
-            ignore: false,
-            only: true,
-            sanitizeOps: false,
-            sanitizeResources: true,
-            sanitizeExit: false,
-          },
-        );
-
-        describe({
-          name: "sub-suite C",
-          only: false,
-          sanitizeOps: true,
-          fn() {
-            it("test 1", testSpys[4]);
-            assertEquals(registerTestStub.calls.length, 5);
-            assertEquals(registerTestStub.calls[4].args.length, 1);
-            assertEquals(
-              testDefinition(registerTestStub.calls[4].args[0]),
-              {
-                name: "top level suite A sub-suite C test 1",
-                ignore: false,
-                only: false,
-                sanitizeOps: true,
-                sanitizeResources: true,
-                sanitizeExit: false,
-              },
-            );
-
-            it("test 2", testSpys[5]);
-            assertEquals(registerTestStub.calls.length, 6);
-            assertEquals(registerTestStub.calls[5].args.length, 1);
-            assertEquals(
-              testDefinition(registerTestStub.calls[5].args[0]),
-              {
-                name: "top level suite A sub-suite C test 2",
-                ignore: false,
-                only: false,
-                sanitizeOps: true,
-                sanitizeResources: true,
-                sanitizeExit: false,
-              },
-            );
-          },
-        });
-      },
-    });
-
-    assertEquals(testSpys[0].calls.length, 0);
-    await registerTestStub.calls[0].args[0].fn();
-    assertEquals(testSpys[0].calls.length, 1);
-    assertEquals(testSpys[0].calls[0].args, [{}]);
-
-    assertEquals(testSpys[1].calls.length, 0);
-    await registerTestStub.calls[1].args[0].fn();
-    assertEquals(testSpys[1].calls.length, 1);
-    assertEquals(testSpys[1].calls[0].args, [{}]);
-
-    assertEquals(testSpys[2].calls.length, 0);
-    await registerTestStub.calls[2].args[0].fn();
-    assertEquals(testSpys[2].calls.length, 1);
-    assertEquals(testSpys[2].calls[0].args, [{}]);
-
-    assertEquals(testSpys[3].calls.length, 0);
-    await registerTestStub.calls[3].args[0].fn();
-    assertEquals(testSpys[3].calls.length, 1);
-    assertEquals(testSpys[3].calls[0].args, [{}]);
-
-    assertEquals(testSpys[4].calls.length, 0);
-    await registerTestStub.calls[4].args[0].fn();
-    assertEquals(testSpys[4].calls.length, 1);
-    assertEquals(testSpys[4].calls[0].args, [{}]);
-
-    assertEquals(testSpys[5].calls.length, 0);
-    await registerTestStub.calls[5].args[0].fn();
-    assertEquals(testSpys[5].calls.length, 1);
-    assertEquals(testSpys[5].calls[0].args, [{}]);
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("simple each call", () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpy = spy();
-
-  try {
-    TestSuite.reset();
-
-    each("simple each call", [[1], [2], [3], [4]], testSpy);
-
-    assertEquals(registerTestStub.calls.length, 4);
-    assertEquals(testDefinition(registerTestStub.calls[0].args[0]), {
-      name: "simple each call: 1",
-    });
-    assertEquals(testDefinition(registerTestStub.calls[1].args[0]), {
-      name: "simple each call: 2",
-    });
-    assertEquals(testDefinition(registerTestStub.calls[2].args[0]), {
-      name: "simple each call: 3",
-    });
-    assertEquals(testDefinition(registerTestStub.calls[3].args[0]), {
-      name: "simple each call: 4",
-    });
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("each with named tests", () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpy = spy();
-
-  try {
-    TestSuite.reset();
-
-    each("each with name", [
-      { name: "first", params: [1] },
-      { name: "second", params: [2] },
-    ], testSpy);
-
-    assertEquals(registerTestStub.calls.length, 2);
-    assertEquals(testDefinition(registerTestStub.calls[0].args[0]), {
-      name: "each with name: first",
-    });
-    assertEquals(testDefinition(registerTestStub.calls[1].args[0]), {
-      name: "each with name: second",
-    });
-  } finally {
-    registerTestStub.restore();
-  }
-});
-
-Deno.test("each handles parameters correctly", async () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpy = spy();
-
-  try {
-    TestSuite.reset();
-
-    each("each calls", [[1], [2]], testSpy);
-
-    for (const c of registerTestStub.calls) {
-      await c.args[0].fn();
+import { TestSuite } from "./test_suite.ts";
+import {
+  assertSpyCall,
+  assertSpyCalls,
+  FakeTime,
+  Spy,
+  spy,
+  stub,
+} from "./test_deps.ts";
+
+Deno.test("global", async (t) => {
+  class TestContext implements Deno.TestContext {
+    steps: TestContext[];
+    spies: {
+      step: Spy<void>;
+    };
+
+    constructor() {
+      this.spies = {
+        step: spy(this, "step"),
+      };
+      this.steps = [];
     }
-    assertEquals(testSpy.calls.length, 2);
-    assertEquals(testSpy.calls[0].args, [1]);
-    assertEquals(testSpy.calls[1].args, [2]);
-  } finally {
-    registerTestStub.restore();
+
+    async step(t: Deno.TestStepDefinition): Promise<boolean>;
+    async step(
+      name: string,
+      fn: (t: Deno.TestContext) => void | Promise<void>,
+    ): Promise<boolean>;
+    async step(
+      tOrName: Deno.TestStepDefinition | string,
+      fn?: (t: Deno.TestContext) => void | Promise<void>,
+    ): Promise<boolean> {
+      let ignore = false;
+      if (typeof tOrName === "object") {
+        ignore = tOrName.ignore ?? false;
+        fn = tOrName.fn;
+      }
+
+      const context = new TestContext();
+      this.steps.push(context);
+      if (!ignore) {
+        await fn!(context);
+      }
+      return !ignore;
+    }
   }
-});
 
-Deno.test("each with options", () => {
-  const registerTestStub: Stub<typeof TestSuite> = stub(
-    TestSuite,
-    "registerTest",
-  );
-  const testSpy = spy();
+  const baseStepOptions: Omit<Deno.TestStepDefinition, "name" | "fn"> = {
+    ignore: false,
+    sanitizeExit: true,
+    sanitizeOps: true,
+    sanitizeResources: true,
+  };
 
-  try {
-    TestSuite.reset();
+  const baseOptions: Omit<Deno.TestDefinition, "name" | "fn"> = {
+    ...baseStepOptions,
+    only: false,
+    permissions: "inherit",
+  };
 
-    each({
-      name: "each with options",
-      cases: [
-        { name: "first", params: [1] },
-        { name: "second", params: [2] },
-      ],
-      fn: testSpy,
-    });
-
-    assertEquals(registerTestStub.calls.length, 2);
-    assertEquals(testDefinition(registerTestStub.calls[0].args[0]), {
-      name: "each with options: first",
-    });
-    assertEquals(testDefinition(registerTestStub.calls[1].args[0]), {
-      name: "each with options: second",
-    });
-  } finally {
-    registerTestStub.restore();
+  interface GlobalContext {
+    allTimer: number;
+    eachTimer: number;
   }
+
+  await t.step("global hooks", async () => {
+    const test = stub(Deno, "test"),
+      time = new FakeTime(),
+      fns = [spy(), spy()],
+      beforeAllFn = spy((context: GlobalContext) => {
+        context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+      }),
+      afterAllFn = spy(({ allTimer }: GlobalContext) => {
+        clearTimeout(allTimer);
+      }),
+      beforeEachFn = spy((context: GlobalContext) => {
+        context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+      }),
+      afterEachFn = spy(({ eachTimer }: GlobalContext) => {
+        clearTimeout(eachTimer);
+      });
+
+    try {
+      beforeAll(beforeAllFn);
+      afterAll(afterAllFn);
+
+      beforeEach(beforeEachFn);
+      afterEach(afterEachFn);
+
+      assertEquals(it({ name: "example 1", fn: fns[0] }), undefined);
+      assertEquals(it({ name: "example 2", fn: fns[1] }), undefined);
+
+      assertSpyCalls(fns[0], 0);
+      assertSpyCalls(fns[1], 0);
+
+      const call = assertSpyCall(test, 0);
+      const options = call.args[0] as Deno.TestDefinition;
+      assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+      assertEquals(options.name, "global");
+
+      const context = new TestContext();
+      const result = options.fn(context);
+      assertStrictEquals(Promise.resolve(result), result);
+      assertEquals(await result, undefined);
+      assertSpyCalls(context.spies.step, 2);
+    } finally {
+      TestSuite.reset();
+      test.restore();
+      time.restore();
+    }
+
+    let fn = fns[0];
+    assertSpyCall(fn, 0, {
+      self: undefined,
+      args: [{ allTimer: 1, eachTimer: 2 }],
+      returned: undefined,
+    });
+    assertSpyCalls(fn, 1);
+
+    fn = fns[1];
+    assertSpyCall(fn, 0, {
+      self: undefined,
+      args: [{ allTimer: 1, eachTimer: 3 }],
+      returned: undefined,
+    });
+    assertSpyCalls(fn, 1);
+
+    assertSpyCalls(beforeAllFn, 1);
+    assertSpyCalls(afterAllFn, 1);
+    assertSpyCalls(beforeEachFn, 2);
+    assertSpyCalls(afterEachFn, 2);
+  });
+
+  await t.step("it", async (t) => {
+    async function assertOptions<T>(
+      expectedOptions: Omit<Deno.TestDefinition, "name" | "fn">,
+      cb: (fn: Spy<void>) => void,
+    ): Promise<void> {
+      const test = stub(Deno, "test");
+      const fn = spy();
+      try {
+        cb(fn);
+
+        assertSpyCalls(fn, 0);
+        const call = assertSpyCall(test, 0);
+        const options = call.args[0] as Deno.TestDefinition;
+        assertEquals(
+          Object.keys(options).sort(),
+          ["name", "fn", ...Object.keys(expectedOptions)].sort(),
+        );
+        assertObjectMatch(options, {
+          name: "example",
+          ...expectedOptions,
+        });
+
+        const context = new TestContext();
+        const result = options.fn(context);
+        assertStrictEquals(Promise.resolve(result), result);
+        assertEquals(await result, undefined);
+        assertSpyCalls(context.spies.step, 0);
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{}],
+          returned: undefined,
+        });
+      } finally {
+        TestSuite.reset();
+        test.restore();
+      }
+    }
+
+    async function assertMinimumOptions(
+      cb: (fn: Spy<void>) => void,
+    ): Promise<void> {
+      await assertOptions({}, cb);
+    }
+
+    async function assertAllOptions(
+      cb: (fn: Spy<void>) => void,
+    ): Promise<void> {
+      await assertOptions(baseOptions, cb);
+    }
+
+    await t.step("signature 1", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it({ name: "example", fn }), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fn) => {
+          assertEquals(
+            it({
+              name: "example",
+              fn,
+              ...baseOptions,
+            }),
+            undefined,
+          );
+        }));
+    });
+
+    await t.step("signature 2", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it("example", { fn }), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fn) => {
+          assertEquals(
+            it("example", {
+              fn,
+              ...baseOptions,
+            }),
+            undefined,
+          );
+        }));
+    });
+
+    await t.step("signature 3", async () =>
+      await assertMinimumOptions((fn) => {
+        assertEquals(it("example", fn), undefined);
+      }));
+
+    await t.step("signature 4", async () =>
+      await assertMinimumOptions((fn) => {
+        assertEquals(
+          it(function example() {
+            fn.apply(undefined, Array.from(arguments));
+          }),
+          undefined,
+        );
+      }));
+
+    await t.step("signature 5", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it("example", {}, fn), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fn) => {
+          assertEquals(
+            it("example", {
+              ...baseOptions,
+            }, fn),
+            undefined,
+          );
+        }));
+    });
+
+    await t.step("signature 6", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it({ name: "example" }, fn), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fn) => {
+          assertEquals(
+            it({
+              name: "example",
+              ...baseOptions,
+            }, fn),
+            undefined,
+          );
+        }));
+    });
+
+    await t.step("signature 7", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(
+              it({}, function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fn) => {
+          assertEquals(
+            it({
+              ...baseOptions,
+            }, function example() {
+              fn.apply(undefined, Array.from(arguments));
+            }),
+            undefined,
+          );
+        }));
+    });
+
+    await t.step("only", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ only: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, only: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only({ name: "example", fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only({
+                name: "example",
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 2", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only("example", { fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only("example", {
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step(
+        "signature 3",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it.only("example", fn), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(
+              it.only(function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }),
+      );
+
+      await t.step("signature 5", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only("example", {}, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only("example", {
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.only({ name: "example" }, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only({
+                name: "example",
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(
+                it.only({}, function example() {
+                  fn.apply(undefined, Array.from(arguments));
+                }),
+                undefined,
+              );
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.only({
+                ...baseOptions,
+              }, function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }));
+      });
+    });
+
+    await t.step("ignore", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ ignore: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fn: Spy<void>) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, ignore: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore({ name: "example", fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore({
+                name: "example",
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 2", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore("example", { fn }), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore("example", {
+                fn,
+                ...baseOptions,
+              }),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step(
+        "signature 3",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(it.ignore("example", fn), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fn) => {
+            assertEquals(
+              it.ignore(function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }),
+      );
+
+      await t.step("signature 5", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore("example", {}, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore("example", {
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(it.ignore({ name: "example" }, fn), undefined);
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore({
+                name: "example",
+                ...baseOptions,
+              }, fn),
+              undefined,
+            );
+          }));
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fn) => {
+              assertEquals(
+                it.ignore({}, function example() {
+                  fn.apply(undefined, Array.from(arguments));
+                }),
+                undefined,
+              );
+            }),
+        );
+
+        await t.step("all options", async () =>
+          await assertAllOptions((fn) => {
+            assertEquals(
+              it.ignore({
+                ...baseOptions,
+              }, function example() {
+                fn.apply(undefined, Array.from(arguments));
+              }),
+              undefined,
+            );
+          }));
+      });
+    });
+  });
+
+  await t.step("describe", async (t) => {
+    async function assertOptions(
+      expectedOptions: Omit<Deno.TestDefinition, "name" | "fn">,
+      cb: (fns: Spy<void>[]) => void,
+    ): Promise<void> {
+      const test = stub(Deno, "test");
+      const fns = [spy(), spy()];
+      try {
+        cb(fns);
+
+        const call = assertSpyCall(test, 0);
+        const options = call.args[0] as Deno.TestDefinition;
+        assertEquals(
+          Object.keys(options).sort(),
+          ["name", "fn", ...Object.keys(expectedOptions)].sort(),
+        );
+        assertObjectMatch(options, {
+          name: "example",
+          ...expectedOptions,
+        });
+
+        assertSpyCalls(fns[0], 0);
+        assertSpyCalls(fns[1], 0);
+
+        const context = new TestContext();
+        const result = options.fn(context);
+        assertStrictEquals(Promise.resolve(result), result);
+        assertEquals(await result, undefined);
+        assertSpyCalls(context.spies.step, 2);
+
+        let fn = fns[0];
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{}],
+          returned: undefined,
+        });
+
+        fn = fns[1];
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{}],
+          returned: undefined,
+        });
+        assertSpyCalls(fn, 1);
+      } finally {
+        TestSuite.reset();
+        test.restore();
+      }
+    }
+
+    async function assertMinimumOptions(
+      cb: (fns: Spy<void>[]) => void,
+    ): Promise<void> {
+      await assertOptions({}, cb);
+    }
+
+    async function assertAllOptions(
+      cb: (fns: Spy<void>[]) => void,
+    ): Promise<void> {
+      await assertOptions({ ...baseOptions }, cb);
+    }
+
+    await t.step("signature 1", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe({ name: "example" });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fns) => {
+          const suite = describe({
+            name: "example",
+            fn: () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            },
+            ...baseOptions,
+          });
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }));
+    });
+
+    await t.step(
+      "signature 2",
+      async () =>
+        await assertMinimumOptions((fns) => {
+          const suite = describe("example");
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }),
+    );
+
+    await t.step("signature 3", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe("example", {});
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fns) => {
+          const suite = describe("example", {
+            fn: () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            },
+            ...baseOptions,
+          });
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }));
+    });
+
+    await t.step(
+      "signature 4",
+      async () =>
+        await assertMinimumOptions((fns) => {
+          const suite = describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+          });
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }),
+    );
+
+    await t.step(
+      "signature 5",
+      async () =>
+        await assertMinimumOptions((fns) => {
+          const suite = describe(function example() {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+          });
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }),
+    );
+
+    await t.step("signature 6", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe("example", {}, () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fns) => {
+          const suite = describe("example", {
+            ...baseOptions,
+          }, () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+          });
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }));
+    });
+
+    await t.step("signature 7", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe({ name: "example" }, () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fns) => {
+          const suite = describe({
+            name: "example",
+            ...baseOptions,
+          }, () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+          });
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }));
+    });
+
+    await t.step("signature 8", async (t) => {
+      await t.step(
+        "minimum options",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe({}, function example() {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("all options", async () =>
+        await assertAllOptions((fns) => {
+          const suite = describe({
+            ...baseOptions,
+          }, function example() {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+          });
+          assert(suite instanceof TestSuite);
+          assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+        }));
+    });
+
+    await t.step("only", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ only: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, only: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only({ name: "example" });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only({
+                name: "example",
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 2",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.only("example");
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 3", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only("example", {});
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only("example", {
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.only("example", () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 5",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.only(function example() {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only("example", {}, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only("example", {
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only({ name: "example" }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only({
+                name: "example",
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 8", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.only({}, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.only({
+                ...baseOptions,
+              }, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+    });
+
+    await t.step("ignore", async (t) => {
+      async function assertMinimumOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ ignore: true }, cb);
+      }
+
+      async function assertAllOptions(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        await assertOptions({ ...baseOptions, ignore: true }, cb);
+      }
+
+      await t.step("signature 1", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore({ name: "example" });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore({
+                name: "example",
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 2",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.ignore("example");
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 3", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore("example", {});
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "a", fn: fns[0] }), undefined);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore("example", {
+                fn: () => {
+                  assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+                },
+                ...baseOptions,
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step(
+        "signature 4",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.ignore("example", () => {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step(
+        "signature 5",
+        async () =>
+          await assertMinimumOptions((fns) => {
+            const suite = describe.ignore(function example() {
+              assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            });
+            assert(suite instanceof TestSuite);
+            assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+          }),
+      );
+
+      await t.step("signature 6", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore("example", {}, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore("example", {
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 7", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore({ name: "example" }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore({
+                name: "example",
+                ...baseOptions,
+              }, () => {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+
+      await t.step("signature 8", async (t) => {
+        await t.step(
+          "minimum options",
+          async () =>
+            await assertMinimumOptions((fns) => {
+              const suite = describe.ignore({}, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+
+        await t.step(
+          "all options",
+          async () =>
+            await assertAllOptions((fns) => {
+              const suite = describe.ignore({
+                ...baseOptions,
+              }, function example() {
+                assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+              });
+              assert(suite instanceof TestSuite);
+              assertEquals(it({ suite, name: "b", fn: fns[1] }), undefined);
+            }),
+        );
+      });
+    });
+
+    await t.step("nested only", async (t) => {
+      async function assertOnly(
+        cb: (fns: Spy<void>[]) => void,
+      ): Promise<void> {
+        const test = stub(Deno, "test");
+        const fns = [spy(), spy(), spy()];
+        try {
+          cb(fns);
+
+          const call = assertSpyCall(test, 0);
+          const options = call.args[0] as Deno.TestDefinition;
+          assertEquals(
+            Object.keys(options).sort(),
+            ["name", "fn"].sort(),
+          );
+          assertObjectMatch(options, {
+            name: "example",
+          });
+
+          assertSpyCalls(fns[0], 0);
+          assertSpyCalls(fns[1], 0);
+
+          const context = new TestContext();
+          const result = options.fn(context);
+          assertStrictEquals(Promise.resolve(result), result);
+          assertEquals(await result, undefined);
+          assertSpyCalls(context.spies.step, 1);
+
+          let fn = fns[0];
+          assertSpyCalls(fn, 0);
+
+          fn = fns[1];
+          assertSpyCall(fn, 0, {
+            self: undefined,
+            args: [{}],
+            returned: undefined,
+          });
+          assertSpyCalls(fn, 1);
+
+          fn = fns[2];
+          assertSpyCalls(fn, 0);
+        } finally {
+          TestSuite.reset();
+          test.restore();
+        }
+      }
+
+      await t.step("it", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            assertEquals(it.only({ name: "b", fn: fns[1] }), undefined);
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+
+      await t.step("nested it", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            describe("nested", () => {
+              assertEquals(it.only({ name: "b", fn: fns[1] }), undefined);
+            });
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+
+      await t.step("describe", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            describe.only("nested", () => {
+              assertEquals(it({ name: "b", fn: fns[1] }), undefined);
+            });
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+
+      await t.step("nested describe", async () =>
+        await assertOnly((fns) => {
+          describe("example", () => {
+            assertEquals(it({ name: "a", fn: fns[0] }), undefined);
+            describe("nested", () => {
+              describe.only("nested 2", () => {
+                assertEquals(it({ name: "b", fn: fns[1] }), undefined);
+              });
+            });
+            assertEquals(it({ name: "c", fn: fns[2] }), undefined);
+          });
+        }));
+    });
+
+    await t.step("with hooks", async (t) => {
+      async function assertHooks(
+        cb: (
+          options: {
+            beforeAllFn: Spy<void>;
+            afterAllFn: Spy<void>;
+            beforeEachFn: Spy<void>;
+            afterEachFn: Spy<void>;
+            fns: Spy<void>[];
+          },
+        ) => void,
+      ) {
+        const test = stub(Deno, "test"),
+          fns = [spy(), spy()],
+          beforeAllFn = spy((context: GlobalContext) => {
+            context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+          }),
+          afterAllFn = spy(({ allTimer }: GlobalContext) => {
+            clearTimeout(allTimer);
+          }),
+          beforeEachFn = spy((context: GlobalContext) => {
+            context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+          }),
+          afterEachFn = spy(({ eachTimer }: GlobalContext) => {
+            clearTimeout(eachTimer);
+          });
+
+        const time = new FakeTime();
+        try {
+          cb({ beforeAllFn, afterAllFn, beforeEachFn, afterEachFn, fns });
+
+          assertSpyCalls(fns[0], 0);
+          assertSpyCalls(fns[1], 0);
+
+          const call = assertSpyCall(test, 0);
+          const options = call.args[0] as Deno.TestDefinition;
+          assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+          assertEquals(options.name, "example");
+
+          const context = new TestContext();
+          const result = options.fn(context);
+          assertStrictEquals(Promise.resolve(result), result);
+          assertEquals(await result, undefined);
+          assertSpyCalls(context.spies.step, 2);
+        } finally {
+          TestSuite.reset();
+          test.restore();
+          time.restore();
+        }
+
+        let fn = fns[0];
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{ allTimer: 1, eachTimer: 2 }],
+          returned: undefined,
+        });
+        assertSpyCalls(fn, 1);
+
+        fn = fns[1];
+        assertSpyCall(fn, 0, {
+          self: undefined,
+          args: [{ allTimer: 1, eachTimer: 3 }],
+          returned: undefined,
+        });
+        assertSpyCalls(fn, 1);
+
+        assertSpyCalls(beforeAllFn, 1);
+        assertSpyCalls(afterAllFn, 1);
+        assertSpyCalls(beforeEachFn, 2);
+        assertSpyCalls(afterEachFn, 2);
+      }
+
+      await t.step(
+        "in callback",
+        async () =>
+          await assertHooks(
+            ({ beforeAllFn, afterAllFn, beforeEachFn, afterEachFn, fns }) => {
+              describe("example", () => {
+                beforeAll(beforeAllFn);
+                afterAll(afterAllFn);
+
+                beforeEach(beforeEachFn);
+                afterEach(afterEachFn);
+
+                assertEquals(it({ name: "example 1", fn: fns[0] }), undefined);
+                assertEquals(it({ name: "example 2", fn: fns[1] }), undefined);
+              });
+            },
+          ),
+      );
+
+      await t.step(
+        "in options",
+        async () =>
+          await assertHooks(
+            ({ beforeAllFn, afterAllFn, beforeEachFn, afterEachFn, fns }) => {
+              describe({
+                name: "example",
+                beforeAll: beforeAllFn,
+                afterAll: afterAllFn,
+                beforeEach: beforeEachFn,
+                afterEach: afterEachFn,
+                fn: () => {
+                  assertEquals(
+                    it({ name: "example 1", fn: fns[0] }),
+                    undefined,
+                  );
+                  assertEquals(
+                    it({ name: "example 2", fn: fns[1] }),
+                    undefined,
+                  );
+                },
+              });
+            },
+          ),
+      );
+
+      await t.step(
+        "nested",
+        async () => {
+          const test = stub(Deno, "test"),
+            time = new FakeTime(),
+            fns = [spy(), spy()],
+            beforeAllFn = spy((context: GlobalContext) => {
+              context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+            }),
+            afterAllFn = spy(({ allTimer }: GlobalContext) => {
+              clearTimeout(allTimer);
+            }),
+            beforeEachFn = spy((context: GlobalContext) => {
+              context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+            }),
+            afterEachFn = spy(({ eachTimer }: GlobalContext) => {
+              clearTimeout(eachTimer);
+            });
+
+          try {
+            describe("example", () => {
+              beforeAll(beforeAllFn);
+              afterAll(afterAllFn);
+
+              beforeEach(beforeEachFn);
+              afterEach(afterEachFn);
+
+              describe("nested", () => {
+                assertEquals(it({ name: "example 1", fn: fns[0] }), undefined);
+                assertEquals(it({ name: "example 2", fn: fns[1] }), undefined);
+              });
+            });
+
+            assertSpyCalls(fns[0], 0);
+            assertSpyCalls(fns[1], 0);
+
+            const call = assertSpyCall(test, 0);
+            const options = call.args[0] as Deno.TestDefinition;
+            assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+            assertEquals(options.name, "example");
+
+            let context = new TestContext();
+            const result = options.fn(context);
+            assertStrictEquals(Promise.resolve(result), result);
+            assertEquals(await result, undefined);
+            assertSpyCalls(context.spies.step, 1);
+
+            context = context.steps[0];
+            assertStrictEquals(Promise.resolve(result), result);
+            assertEquals(await result, undefined);
+            assertSpyCalls(context.spies.step, 2);
+          } finally {
+            TestSuite.reset();
+            test.restore();
+            time.restore();
+          }
+
+          let fn = fns[0];
+          assertSpyCall(fn, 0, {
+            self: undefined,
+            args: [{ allTimer: 1, eachTimer: 2 }],
+            returned: undefined,
+          });
+          assertSpyCalls(fn, 1);
+
+          fn = fns[1];
+          assertSpyCall(fn, 0, {
+            self: undefined,
+            args: [{ allTimer: 1, eachTimer: 3 }],
+            returned: undefined,
+          });
+          assertSpyCalls(fn, 1);
+
+          assertSpyCalls(beforeAllFn, 1);
+          assertSpyCalls(afterAllFn, 1);
+          assertSpyCalls(beforeEachFn, 2);
+          assertSpyCalls(afterEachFn, 2);
+        },
+      );
+
+      interface NestedContext extends GlobalContext {
+        allTimerNested: number;
+        eachTimerNested: number;
+      }
+
+      await t.step(
+        "nested with hooks",
+        async () => {
+          const test = stub(Deno, "test"),
+            time = new FakeTime(),
+            fns = [spy(), spy()],
+            beforeAllFn = spy((context: GlobalContext) => {
+              context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+            }),
+            afterAllFn = spy(({ allTimer }: GlobalContext) => {
+              clearTimeout(allTimer);
+            }),
+            beforeEachFn = spy((context: GlobalContext) => {
+              context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+            }),
+            afterEachFn = spy(({ eachTimer }: GlobalContext) => {
+              clearTimeout(eachTimer);
+            }),
+            beforeAllFnNested = spy((context: NestedContext) => {
+              context.allTimerNested = setTimeout(
+                () => {},
+                Number.MAX_SAFE_INTEGER,
+              );
+            }),
+            afterAllFnNested = spy(({ allTimerNested }: NestedContext) => {
+              clearTimeout(allTimerNested);
+            }),
+            beforeEachFnNested = spy((context: NestedContext) => {
+              context.eachTimerNested = setTimeout(
+                () => {},
+                Number.MAX_SAFE_INTEGER,
+              );
+            }),
+            afterEachFnNested = spy(({ eachTimerNested }: NestedContext) => {
+              clearTimeout(eachTimerNested);
+            });
+
+          try {
+            describe("example", () => {
+              beforeAll(beforeAllFn);
+              afterAll(afterAllFn);
+
+              beforeEach(beforeEachFn);
+              afterEach(afterEachFn);
+
+              describe("nested", () => {
+                beforeAll(beforeAllFnNested);
+                afterAll(afterAllFnNested);
+
+                beforeEach(beforeEachFnNested);
+                afterEach(afterEachFnNested);
+
+                assertEquals(it({ name: "example 1", fn: fns[0] }), undefined);
+                assertEquals(it({ name: "example 2", fn: fns[1] }), undefined);
+              });
+            });
+
+            assertSpyCalls(fns[0], 0);
+            assertSpyCalls(fns[1], 0);
+
+            const call = assertSpyCall(test, 0);
+            const options = call.args[0] as Deno.TestDefinition;
+            assertEquals(Object.keys(options).sort(), ["fn", "name"]);
+            assertEquals(options.name, "example");
+
+            let context = new TestContext();
+            const result = options.fn(context);
+            assertStrictEquals(Promise.resolve(result), result);
+            assertEquals(await result, undefined);
+            assertSpyCalls(context.spies.step, 1);
+
+            context = context.steps[0];
+            assertStrictEquals(Promise.resolve(result), result);
+            assertEquals(await result, undefined);
+            assertSpyCalls(context.spies.step, 2);
+          } finally {
+            TestSuite.reset();
+            test.restore();
+            time.restore();
+          }
+
+          let fn = fns[0];
+          assertSpyCall(fn, 0, {
+            self: undefined,
+            args: [{
+              allTimer: 1,
+              allTimerNested: 2,
+              eachTimer: 3,
+              eachTimerNested: 4,
+            }],
+            returned: undefined,
+          });
+          assertSpyCalls(fn, 1);
+
+          fn = fns[1];
+          assertSpyCall(fn, 0, {
+            self: undefined,
+            args: [{
+              allTimer: 1,
+              allTimerNested: 2,
+              eachTimer: 5,
+              eachTimerNested: 6,
+            }],
+            returned: undefined,
+          });
+          assertSpyCalls(fn, 1);
+
+          assertSpyCalls(beforeAllFn, 1);
+          assertSpyCalls(afterAllFn, 1);
+          assertSpyCalls(beforeEachFn, 2);
+          assertSpyCalls(afterEachFn, 2);
+
+          assertSpyCalls(beforeAllFnNested, 1);
+          assertSpyCalls(afterAllFnNested, 1);
+          assertSpyCalls(beforeEachFnNested, 2);
+          assertSpyCalls(afterEachFnNested, 2);
+        },
+      );
+    });
+  });
 });
