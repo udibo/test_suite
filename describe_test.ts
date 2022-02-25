@@ -78,22 +78,32 @@ Deno.test("global", async (t) => {
     eachTimer: number;
   }
 
+  function beforeAllFns() {
+    return {
+      beforeAllFn: spy(async (context: GlobalContext) => {
+        await Promise.resolve();
+        context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+      }),
+      afterAllFn: spy(async ({ allTimer }: GlobalContext) => {
+        await Promise.resolve();
+        clearTimeout(allTimer);
+      }),
+      beforeEachFn: spy(async (context: GlobalContext) => {
+        await Promise.resolve();
+        context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+      }),
+      afterEachFn: spy(async ({ eachTimer }: GlobalContext) => {
+        await Promise.resolve();
+        clearTimeout(eachTimer);
+      }),
+    };
+  }
+
   await t.step("global hooks", async () => {
     const test = stub(Deno, "test"),
       time = new FakeTime(),
       fns = [spy(), spy()],
-      beforeAllFn = spy((context: GlobalContext) => {
-        context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-      }),
-      afterAllFn = spy(({ allTimer }: GlobalContext) => {
-        clearTimeout(allTimer);
-      }),
-      beforeEachFn = spy((context: GlobalContext) => {
-        context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-      }),
-      afterEachFn = spy(({ eachTimer }: GlobalContext) => {
-        clearTimeout(eachTimer);
-      });
+      { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } = beforeAllFns();
 
     try {
       beforeAll(beforeAllFn);
@@ -1326,21 +1336,11 @@ Deno.test("global", async (t) => {
         ) => void,
       ) {
         const test = stub(Deno, "test"),
+          time = new FakeTime(),
           fns = [spy(), spy()],
-          beforeAllFn = spy((context: GlobalContext) => {
-            context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-          }),
-          afterAllFn = spy(({ allTimer }: GlobalContext) => {
-            clearTimeout(allTimer);
-          }),
-          beforeEachFn = spy((context: GlobalContext) => {
-            context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-          }),
-          afterEachFn = spy(({ eachTimer }: GlobalContext) => {
-            clearTimeout(eachTimer);
-          });
+          { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } =
+            beforeAllFns();
 
-        const time = new FakeTime();
         try {
           cb({ beforeAllFn, afterAllFn, beforeEachFn, afterEachFn, fns });
 
@@ -1436,18 +1436,8 @@ Deno.test("global", async (t) => {
           const test = stub(Deno, "test"),
             time = new FakeTime(),
             fns = [spy(), spy()],
-            beforeAllFn = spy((context: GlobalContext) => {
-              context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-            }),
-            afterAllFn = spy(({ allTimer }: GlobalContext) => {
-              clearTimeout(allTimer);
-            }),
-            beforeEachFn = spy((context: GlobalContext) => {
-              context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-            }),
-            afterEachFn = spy(({ eachTimer }: GlobalContext) => {
-              clearTimeout(eachTimer);
-            });
+            { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } =
+              beforeAllFns();
 
           try {
             describe("example", () => {
@@ -1521,36 +1511,34 @@ Deno.test("global", async (t) => {
           const test = stub(Deno, "test"),
             time = new FakeTime(),
             fns = [spy(), spy()],
-            beforeAllFn = spy((context: GlobalContext) => {
-              context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-            }),
-            afterAllFn = spy(({ allTimer }: GlobalContext) => {
-              clearTimeout(allTimer);
-            }),
-            beforeEachFn = spy((context: GlobalContext) => {
-              context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
-            }),
-            afterEachFn = spy(({ eachTimer }: GlobalContext) => {
-              clearTimeout(eachTimer);
-            }),
-            beforeAllFnNested = spy((context: NestedContext) => {
+            { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } =
+              beforeAllFns(),
+            beforeAllFnNested = spy(async (context: NestedContext) => {
+              await Promise.resolve();
               context.allTimerNested = setTimeout(
                 () => {},
                 Number.MAX_SAFE_INTEGER,
               );
             }),
-            afterAllFnNested = spy(({ allTimerNested }: NestedContext) => {
-              clearTimeout(allTimerNested);
-            }),
-            beforeEachFnNested = spy((context: NestedContext) => {
+            afterAllFnNested = spy(
+              async ({ allTimerNested }: NestedContext) => {
+                await Promise.resolve();
+                clearTimeout(allTimerNested);
+              },
+            ),
+            beforeEachFnNested = spy(async (context: NestedContext) => {
+              await Promise.resolve();
               context.eachTimerNested = setTimeout(
                 () => {},
                 Number.MAX_SAFE_INTEGER,
               );
             }),
-            afterEachFnNested = spy(({ eachTimerNested }: NestedContext) => {
-              clearTimeout(eachTimerNested);
-            });
+            afterEachFnNested = spy(
+              async ({ eachTimerNested }: NestedContext) => {
+                await Promise.resolve();
+                clearTimeout(eachTimerNested);
+              },
+            );
 
           try {
             describe("example", () => {
