@@ -102,7 +102,7 @@ export class TestSuite<T> {
           if (!TestSuite.running) TestSuite.running = true;
           const context = {} as T;
           if (this.describe.beforeAll) {
-            this.describe.beforeAll(context);
+            await this.describe.beforeAll(context);
           }
           try {
             TestSuite.active.push(this);
@@ -110,7 +110,7 @@ export class TestSuite<T> {
           } finally {
             TestSuite.active.pop();
             if (this.describe.afterAll) {
-              this.describe.afterAll(context);
+              await this.describe.afterAll(context);
             }
           }
         },
@@ -239,7 +239,7 @@ export class TestSuite<T> {
           context = { ...context };
           if (step instanceof TestSuite) {
             if (step.describe.beforeAll) {
-              step.describe.beforeAll(context);
+              await step.describe.beforeAll(context);
             }
             try {
               TestSuite.active.push(step);
@@ -247,7 +247,7 @@ export class TestSuite<T> {
             } finally {
               TestSuite.active.pop();
               if (step.describe.afterAll) {
-                step.describe.afterAll(context);
+                await step.describe.afterAll(context);
               }
             }
           } else {
@@ -271,13 +271,13 @@ export class TestSuite<T> {
     if (suite) {
       context = { ...context };
       if (suite.describe.beforeEach) {
-        suite.describe.beforeEach(context);
+        await suite.describe.beforeEach(context);
       }
       try {
         await TestSuite.runTest(fn, context, activeIndex + 1);
       } finally {
         if (suite.describe.afterEach) {
-          suite.describe.afterEach(context);
+          await suite.describe.afterEach(context);
         }
       }
     } else {
