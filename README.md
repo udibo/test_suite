@@ -153,11 +153,7 @@ it(userSuite, "create", () => {
   assertEquals(user.name, "John Doe");
 });
 
-interface GetUserContext extends UserContext {
-  value?: number;
-}
-
-const getUserSuite = describe<GetUserContext>({
+const getUserSuite = describe({
   name: "getUser",
   suite: userSuite,
 });
