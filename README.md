@@ -28,7 +28,10 @@ also be imported directly from GitHub using raw content URLs.
 // Import from Deno's third party module registry
 import { describe, it } from "https://deno.land/x/test_suite@0.11.0/mod.ts";
 // Import from GitHub
-import { describe, it } "https://raw.githubusercontent.com/udibo/test_suite/0.11.0/mod.ts";
+import {
+  describe,
+  it,
+} from "https://raw.githubusercontent.com/udibo/test_suite/0.11.0/mod.ts";
 ```
 
 ## Usage
