@@ -1,3 +1,14 @@
+export { delay } from "https://deno.land/std@0.128.0/async/delay.ts";
+export {
+  assert,
+  assertEquals,
+  AssertionError,
+  assertObjectMatch,
+  assertRejects,
+  assertStrictEquals,
+  assertThrows,
+} from "https://deno.land/std@0.128.0/testing/asserts.ts";
+
 export {
   assertSpyCall,
   assertSpyCallAsync,
