@@ -3,7 +3,7 @@ import {
   assertEquals,
   assertObjectMatch,
   assertStrictEquals,
-} from "./deps.ts";
+} from "./test_deps.ts";
 import {
   afterAll,
   afterEach,

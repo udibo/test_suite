@@ -1,5 +1,3 @@
-import { Vector } from "./deps.ts";
-
 /** The options for creating a test suite with the describe function. */
 export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   fn?: () => void;
@@ -56,12 +54,12 @@ const optionalTestStepDefinitionKeys: (keyof Deno.TestStepDefinition)[] = [
  */
 export class TestSuite<T> {
   protected describe: DescribeDefinition<T>;
-  protected steps: Vector<TestSuite<T> | ItDefinition<T>>;
+  protected steps: (TestSuite<T> | ItDefinition<T>)[];
   protected hasOnlyStep: boolean;
 
   constructor(describe: DescribeDefinition<T>) {
     this.describe = describe;
-    this.steps = new Vector();
+    this.steps = [];
     this.hasOnlyStep = false;
 
     const suite: TestSuite<T> = describe.suite ??
@@ -130,14 +128,14 @@ export class TestSuite<T> {
 
   /** The stack of tests that are actively running. */
   // deno-lint-ignore no-explicit-any
-  static active: Vector<TestSuite<any>> = new Vector();
+  static active: TestSuite<any>[] = [];
 
   /** This is used internally for testing this module. */
   static reset(): void {
     TestSuite.running = false;
     TestSuite.started = false;
     TestSuite.current = null;
-    TestSuite.active = new Vector();
+    TestSuite.active = [];
   }
 
   /** This is used internally to register tests. */
@@ -153,14 +151,14 @@ export class TestSuite<T> {
   static addingOnlyStep<T>(suite: TestSuite<T>) {
     if (!suite.hasOnlyStep) {
       for (let i = 0; i < suite.steps.length; i++) {
-        const step = suite.steps.get(i)!;
+        const step = suite.steps[i]!;
         if (step instanceof TestSuite) {
           if (!(step.hasOnlyStep || step.describe.only)) {
-            suite.steps.delete(i--);
+            suite.steps.splice(i--, 1);
           }
         } else {
           if (!step.only) {
-            suite.steps.delete(i--);
+            suite.steps.splice(i--, 1);
           }
         }
       }
@@ -267,7 +265,7 @@ export class TestSuite<T> {
     context: T,
     activeIndex = 0,
   ) {
-    const suite: TestSuite<T> | undefined = TestSuite.active.get(activeIndex);
+    const suite: TestSuite<T> | undefined = TestSuite.active[activeIndex];
     if (suite) {
       context = { ...context };
       if (suite.describe.beforeEach) {
