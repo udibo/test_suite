@@ -2,11 +2,11 @@
 export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   fn?: () => void;
   /**
-   * The `describe` function returns a symbol representing the group of tests.
-   * If `describe` is called within another `describe` calls `fn`, the suite will default to that parent `describe` calls returned symbol.
-   * If `describe` is not called within another `describe` calls `fn`, the suite will default to the symbol representing the global group of tests.
+   * The `describe` function returns a `TestSuite` representing the group of tests.
+   * If `describe` is called within another `describe` calls `fn`, the suite will default to that parent `describe` calls returned `TestSuite`.
+   * If `describe` is not called within another `describe` calls `fn`, the suite will default to the `TestSuite` representing the global group of tests.
    */
-  suite?: symbol;
+  suite?: TestSuite<T>;
   /** Run some shared setup before all of the tests in the suite. */
   beforeAll?: (context: T) => void | Promise<void>;
   /** Run some shared teardown after all of the tests in the suite. */
@@ -21,11 +21,11 @@ export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
 export interface ItDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   fn: (context: T) => void | Promise<void>;
   /**
-   * The `describe` function returns a symbol representing the group of tests.
-   * If `it` is called within a `describe` calls `fn`, the suite will default to that parent `describe` calls returned symbol.
-   * If `it` is not called within a `describe` calls `fn`, the suite will default to the symbol representing the global group of tests.
+   * The `describe` function returns a `TestSuite` representing the group of tests.
+   * If `it` is called within a `describe` calls `fn`, the suite will default to that parent `describe` calls returned `TestSuite`.
+   * If `it` is not called within a `describe` calls `fn`, the suite will default to the `TestSuite` representing the global group of tests.
    */
-  suite?: symbol;
+  suite?: TestSuite<T>;
 }
 
 /** The names of all the different types of hooks. */
@@ -50,12 +50,19 @@ const optionalTestStepDefinitionKeys: (keyof Deno.TestStepDefinition)[] = [
 ];
 
 /**
- * A group of tests. A test suite can include child test suites.
+ * A group of tests.
  */
-export class TestSuite<T> {
+export interface TestSuite<T> {
+  symbol: symbol;
+}
+
+/**
+ * An internal representation of a group of tests.
+ */
+export class TestSuiteInternal<T> implements TestSuite<T> {
   symbol: symbol;
   protected describe: DescribeDefinition<T>;
-  protected steps: (TestSuite<T> | ItDefinition<T>)[];
+  protected steps: (TestSuiteInternal<T> | ItDefinition<T>)[];
   protected hasOnlyStep: boolean;
 
   constructor(describe: DescribeDefinition<T>) {
@@ -63,27 +70,29 @@ export class TestSuite<T> {
     this.steps = [];
     this.hasOnlyStep = false;
 
-    const suite = describe.suite ?? TestSuite.current?.symbol;
-    if (suite && !TestSuite.suites.has(suite)) {
-      throw new Error("suite symbol does not represent a test suite");
+    const { suite } = describe;
+    if (suite && !TestSuiteInternal.suites.has(suite.symbol)) {
+      throw new Error("suite does not represent a registered test suite");
     }
+    const testSuite = suite
+      ? TestSuiteInternal.suites.get(suite.symbol)
+      : TestSuiteInternal.current;
     this.symbol = Symbol();
-    TestSuite.suites.set(this.symbol, this);
-    const testSuite = suite && TestSuite.suites.get(suite);
+    TestSuiteInternal.suites.set(this.symbol, this);
 
     const { fn } = describe;
     if (fn) {
-      const temp = TestSuite.current;
-      TestSuite.current = this;
+      const temp = TestSuiteInternal.current;
+      TestSuiteInternal.current = this;
       try {
         fn();
       } finally {
-        TestSuite.current = temp;
+        TestSuiteInternal.current = temp;
       }
     }
 
     if (testSuite) {
-      TestSuite.addStep(testSuite, this);
+      TestSuiteInternal.addStep(testSuite, this);
     } else {
       const {
         name,
@@ -94,7 +103,7 @@ export class TestSuite<T> {
         sanitizeOps,
         sanitizeResources,
       } = describe;
-      TestSuite.registerTest({
+      TestSuiteInternal.registerTest({
         name,
         ignore,
         only,
@@ -103,16 +112,16 @@ export class TestSuite<T> {
         sanitizeOps,
         sanitizeResources,
         fn: async (t) => {
-          if (!TestSuite.running) TestSuite.running = true;
+          if (!TestSuiteInternal.running) TestSuiteInternal.running = true;
           const context = {} as T;
           if (this.describe.beforeAll) {
             await this.describe.beforeAll(context);
           }
           try {
-            TestSuite.active.push(this.symbol);
-            await TestSuite.run(this, context, t);
+            TestSuiteInternal.active.push(this.symbol);
+            await TestSuiteInternal.run(this, context, t);
           } finally {
-            TestSuite.active.pop();
+            TestSuiteInternal.active.pop();
             if (this.describe.afterAll) {
               await this.describe.afterAll(context);
             }
@@ -130,21 +139,21 @@ export class TestSuite<T> {
 
   /** A map of all test suites by symbol. */
   // deno-lint-ignore no-explicit-any
-  static suites = new Map<symbol, TestSuite<any>>();
+  static suites = new Map<symbol, TestSuiteInternal<any>>();
 
   /** The current test suite being registered. */
   // deno-lint-ignore no-explicit-any
-  static current: TestSuite<any> | null = null;
+  static current: TestSuiteInternal<any> | null = null;
 
   /** The stack of tests that are actively running. */
   static active: symbol[] = [];
 
   /** This is used internally for testing this module. */
   static reset(): void {
-    TestSuite.running = false;
-    TestSuite.started = false;
-    TestSuite.current = null;
-    TestSuite.active = [];
+    TestSuiteInternal.running = false;
+    TestSuiteInternal.started = false;
+    TestSuiteInternal.current = null;
+    TestSuiteInternal.active = [];
   }
 
   /** This is used internally to register tests. */
@@ -157,11 +166,11 @@ export class TestSuite<T> {
   }
 
   /** Updates all steps within top level suite to have ignore set to true if only is not set to true on step. */
-  static addingOnlyStep<T>(suite: TestSuite<T>) {
+  static addingOnlyStep<T>(suite: TestSuiteInternal<T>) {
     if (!suite.hasOnlyStep) {
       for (let i = 0; i < suite.steps.length; i++) {
         const step = suite.steps[i]!;
-        if (step instanceof TestSuite) {
+        if (step instanceof TestSuiteInternal) {
           if (!(step.hasOnlyStep || step.describe.only)) {
             suite.steps.splice(i--, 1);
           }
@@ -177,22 +186,22 @@ export class TestSuite<T> {
 
   /** This is used internally to add steps to a test suite. */
   static addStep<T>(
-    suite: TestSuite<T>,
-    step: TestSuite<T> | ItDefinition<T>,
+    suite: TestSuiteInternal<T>,
+    step: TestSuiteInternal<T> | ItDefinition<T>,
   ): void {
     if (!suite.hasOnlyStep) {
-      if (step instanceof TestSuite) {
+      if (step instanceof TestSuiteInternal) {
         if (step.hasOnlyStep || step.describe.only) {
-          TestSuite.addingOnlyStep(suite);
+          TestSuiteInternal.addingOnlyStep(suite);
         }
       } else {
-        if (step.only) TestSuite.addingOnlyStep(suite);
+        if (step.only) TestSuiteInternal.addingOnlyStep(suite);
       }
     }
 
     let omit = false;
     if (suite.hasOnlyStep) {
-      if (step instanceof TestSuite) {
+      if (step instanceof TestSuiteInternal) {
         if (!(step.hasOnlyStep || step.describe.only)) omit = true;
       } else {
         if (!step.only) omit = true;
@@ -204,7 +213,7 @@ export class TestSuite<T> {
 
   /** This is used internally to add hooks to a test suite. */
   static setHook<T>(
-    suite: TestSuite<T>,
+    suite: TestSuiteInternal<T>,
     name: HookNames,
     fn: (context: T) => void | Promise<void>,
   ): void {
@@ -216,7 +225,7 @@ export class TestSuite<T> {
 
   /** This is used internally to run all steps for a test suite. */
   static async run<T>(
-    suite: TestSuite<T>,
+    suite: TestSuiteInternal<T>,
     context: T,
     t: Deno.TestContext,
   ): Promise<void> {
@@ -229,7 +238,7 @@ export class TestSuite<T> {
         sanitizeExit,
         sanitizeOps,
         sanitizeResources,
-      } = step instanceof TestSuite ? step.describe : step;
+      } = step instanceof TestSuiteInternal ? step.describe : step;
 
       const options: Deno.TestStepDefinition = {
         name,
@@ -244,21 +253,21 @@ export class TestSuite<T> {
             );
           }
           context = { ...context };
-          if (step instanceof TestSuite) {
+          if (step instanceof TestSuiteInternal) {
             if (step.describe.beforeAll) {
               await step.describe.beforeAll(context);
             }
             try {
-              TestSuite.active.push(step.symbol);
-              await TestSuite.run(step, context, t);
+              TestSuiteInternal.active.push(step.symbol);
+              await TestSuiteInternal.run(step, context, t);
             } finally {
-              TestSuite.active.pop();
+              TestSuiteInternal.active.pop();
               if (step.describe.afterAll) {
                 await step.describe.afterAll(context);
               }
             }
           } else {
-            await TestSuite.runTest(fn!, context);
+            await TestSuiteInternal.runTest(fn!, context);
           }
         },
       };
@@ -274,15 +283,15 @@ export class TestSuite<T> {
     context: T,
     activeIndex = 0,
   ) {
-    const suite = TestSuite.active[activeIndex];
-    const testSuite = suite && TestSuite.suites.get(suite);
+    const suite = TestSuiteInternal.active[activeIndex];
+    const testSuite = suite && TestSuiteInternal.suites.get(suite);
     if (testSuite) {
       context = { ...context };
       if (testSuite.describe.beforeEach) {
         await testSuite.describe.beforeEach(context);
       }
       try {
-        await TestSuite.runTest(fn, context, activeIndex + 1);
+        await TestSuiteInternal.runTest(fn, context, activeIndex + 1);
       } finally {
         if (testSuite.describe.afterEach) {
           await testSuite.describe.afterEach(context);

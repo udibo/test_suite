@@ -3,8 +3,9 @@ import {
   HookNames,
   ItDefinition,
   TestSuite,
+  TestSuiteInternal,
 } from "./test_suite.ts";
-export type { DescribeDefinition, ItDefinition };
+export type { DescribeDefinition, ItDefinition, TestSuite };
 
 /** The arguments for an ItFunction. */
 type ItArgs<T> =
@@ -32,32 +33,32 @@ type ItArgs<T> =
     fn: (context: T) => void | Promise<void>,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     name: string,
     options: Omit<ItDefinition<T>, "name" | "suite">,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     name: string,
     fn: (context: T) => void | Promise<void>,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     fn: (context: T) => void | Promise<void>,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     name: string,
     options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
     fn: (context: T) => void | Promise<void>,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     options: Omit<ItDefinition<T>, "fn" | "suite">,
     fn: (context: T) => void | Promise<void>,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
     fn: (context: T) => void | Promise<void>,
   ];
@@ -70,15 +71,18 @@ function itDefinition<T>(...args: ItArgs<T>): ItDefinition<T> {
     optionsOrFn,
     fn,
   ] = args;
-  let suite: symbol | undefined = undefined;
+  let suite: TestSuite<T> | undefined = undefined;
   let name: string;
   let options:
     | ItDefinition<T>
     | Omit<ItDefinition<T>, "fn">
     | Omit<ItDefinition<T>, "name">
     | Omit<ItDefinition<T>, "fn" | "name">;
-  if (typeof suiteOptionsOrNameOrFn === "symbol") {
-    suite = suiteOptionsOrNameOrFn;
+  if (
+    typeof suiteOptionsOrNameOrFn === "object" &&
+    typeof (suiteOptionsOrNameOrFn as TestSuite<T>).symbol === "symbol"
+  ) {
+    suite = suiteOptionsOrNameOrFn as TestSuite<T>;
   } else {
     fn = optionsOrFn as typeof fn;
     optionsOrFn = optionsOrNameOrFn as typeof optionsOrFn;
@@ -128,18 +132,20 @@ export interface it {
 
 /** Registers an individual test case. */
 export function it<T>(...args: ItArgs<T>): void {
-  if (TestSuite.running) {
+  if (TestSuiteInternal.running) {
     throw new Error(
       "cannot register new test cases after already registered test cases start running",
     );
   }
   const options = itDefinition(...args);
   const { suite } = options;
-  const testSuite = suite ? TestSuite.suites.get(suite) : TestSuite.current;
+  const testSuite = suite
+    ? TestSuiteInternal.suites.get(suite.symbol)
+    : TestSuiteInternal.current;
 
-  if (!TestSuite.started) TestSuite.started = true;
+  if (!TestSuiteInternal.started) TestSuiteInternal.started = true;
   if (testSuite) {
-    TestSuite.addStep(testSuite, options);
+    TestSuiteInternal.addStep(testSuite, options);
   } else {
     const {
       name,
@@ -151,7 +157,7 @@ export function it<T>(...args: ItArgs<T>): void {
       sanitizeOps,
       sanitizeResources,
     } = options;
-    TestSuite.registerTest({
+    TestSuiteInternal.registerTest({
       name,
       ignore,
       only,
@@ -160,7 +166,7 @@ export function it<T>(...args: ItArgs<T>): void {
       sanitizeOps,
       sanitizeResources,
       fn: async () => {
-        if (!TestSuite.running) TestSuite.running = true;
+        if (!TestSuiteInternal.running) TestSuiteInternal.running = true;
         await fn!({} as T);
       },
     });
@@ -187,18 +193,18 @@ function addHook<T>(
   name: HookNames,
   fn: (context: T) => void | Promise<void>,
 ): void {
-  if (!TestSuite.current) {
-    if (TestSuite.started) {
+  if (!TestSuiteInternal.current) {
+    if (TestSuiteInternal.started) {
       throw new Error(
         "cannot add global hooks after a global test is registered",
       );
     }
-    TestSuite.current = new TestSuite({
+    TestSuiteInternal.current = new TestSuiteInternal({
       name: "global",
       [name]: fn,
     });
   } else {
-    TestSuite.setHook(TestSuite.current!, name, fn);
+    TestSuiteInternal.setHook(TestSuiteInternal.current!, name, fn);
   }
 }
 
@@ -254,36 +260,36 @@ type DescribeArgs<T> =
     fn: () => void,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     name: string,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     name: string,
     options: Omit<DescribeDefinition<T>, "name" | "suite">,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     name: string,
     fn: () => void,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     fn: () => void,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     name: string,
     options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
     fn: () => void,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     options: Omit<DescribeDefinition<T>, "fn" | "suite">,
     fn: () => void,
   ]
   | [
-    suite: symbol,
+    suite: TestSuite<T>,
     options: Omit<DescribeDefinition<T>, "fn" | "name" | "suite">,
     fn: () => void,
   ];
@@ -298,15 +304,18 @@ function describeDefinition<T>(
     optionsOrFn,
     fn,
   ] = args;
-  let suite: symbol | undefined = undefined;
+  let suite: TestSuite<T> | undefined = undefined;
   let name: string;
   let options:
     | DescribeDefinition<T>
     | Omit<DescribeDefinition<T>, "fn">
     | Omit<DescribeDefinition<T>, "name">
     | Omit<DescribeDefinition<T>, "fn" | "name">;
-  if (typeof suiteOptionsOrNameOrFn === "symbol") {
-    suite = suiteOptionsOrNameOrFn;
+  if (
+    typeof suiteOptionsOrNameOrFn === "object" &&
+    typeof (suiteOptionsOrNameOrFn as TestSuite<T>).symbol === "symbol"
+  ) {
+    suite = suiteOptionsOrNameOrFn as TestSuite<T>;
   } else {
     fn = optionsOrFn as typeof fn;
     optionsOrFn = optionsOrNameOrFn as typeof optionsOrFn;
@@ -336,7 +345,11 @@ function describeDefinition<T>(
   }
 
   if (!suite) {
-    suite = options.suite ?? TestSuite.current?.symbol;
+    suite = options.suite;
+  }
+  if (!suite && TestSuiteInternal.current) {
+    const { symbol } = TestSuiteInternal.current;
+    suite = { symbol };
   }
 
   return {
@@ -349,32 +362,33 @@ function describeDefinition<T>(
 
 /** Registers a test suite. */
 export interface describe {
-  <T>(...args: DescribeArgs<T>): symbol;
+  <T>(...args: DescribeArgs<T>): TestSuite<T>;
 
   /** Registers a test suite with only set to true. */
-  only<T>(...args: DescribeArgs<T>): symbol;
+  only<T>(...args: DescribeArgs<T>): TestSuite<T>;
 
   /** Registers a test suite with ignore set to true. */
-  ignore<T>(...args: DescribeArgs<T>): symbol;
+  ignore<T>(...args: DescribeArgs<T>): TestSuite<T>;
 }
 
 /** Registers a test suite. */
 export function describe<T>(
   ...args: DescribeArgs<T>
-): symbol {
-  if (TestSuite.running) {
+): TestSuite<T> {
+  if (TestSuiteInternal.running) {
     throw new Error(
       "cannot register new test suites after already registered test cases start running",
     );
   }
   const options = describeDefinition(...args);
-  if (!TestSuite.started) TestSuite.started = true;
-  return (new TestSuite(options)).symbol;
+  if (!TestSuiteInternal.started) TestSuiteInternal.started = true;
+  const { symbol } = new TestSuiteInternal(options);
+  return { symbol };
 }
 
 describe.only = function describeOnly<T>(
   ...args: DescribeArgs<T>
-): symbol {
+): TestSuite<T> {
   const options = describeDefinition(...args);
   return describe({
     ...options,
@@ -384,7 +398,7 @@ describe.only = function describeOnly<T>(
 
 describe.ignore = function describeIgnore<T>(
   ...args: DescribeArgs<T>
-): symbol {
+): TestSuite<T> {
   const options = describeDefinition(...args);
   return describe({
     ...options,
