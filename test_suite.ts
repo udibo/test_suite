@@ -2,11 +2,11 @@
 export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   fn?: () => void;
   /**
-   * The `describe` function returns a `TestSuite` representing the group of tests.
-   * If `describe` is called within another `describe` calls `fn`, the suite will default to that parent `describe` calls returned `TestSuite`.
-   * If `describe` is not called within another `describe` calls `fn`, the suite will default to the global `TestSuite`.
+   * The `describe` function returns a symbol representing the group of tests.
+   * If `describe` is called within another `describe` calls `fn`, the suite will default to that parent `describe` calls returned symbol.
+   * If `describe` is not called within another `describe` calls `fn`, the suite will default to the symbol representing the global group of tests.
    */
-  suite?: TestSuite<T>;
+  suite?: symbol;
   /** Run some shared setup before all of the tests in the suite. */
   beforeAll?: (context: T) => void | Promise<void>;
   /** Run some shared teardown after all of the tests in the suite. */
@@ -21,11 +21,11 @@ export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
 export interface ItDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
   fn: (context: T) => void | Promise<void>;
   /**
-   * The `describe` function returns a `TestSuite` representing the group of tests.
-   * If `it` is called within a `describe` calls `fn`, the suite will default to that parent `describe` calls returned `TestSuite`.
-   * If `it` is not called within a `describe` calls `fn`, the suite will default to the global `TestSuite`.
+   * The `describe` function returns a symbol representing the group of tests.
+   * If `it` is called within a `describe` calls `fn`, the suite will default to that parent `describe` calls returned symbol.
+   * If `it` is not called within a `describe` calls `fn`, the suite will default to the symbol representing the global group of tests.
    */
-  suite?: TestSuite<T>;
+  suite?: symbol;
 }
 
 /** The names of all the different types of hooks. */
@@ -53,6 +53,7 @@ const optionalTestStepDefinitionKeys: (keyof Deno.TestStepDefinition)[] = [
  * A group of tests. A test suite can include child test suites.
  */
 export class TestSuite<T> {
+  symbol: symbol;
   protected describe: DescribeDefinition<T>;
   protected steps: (TestSuite<T> | ItDefinition<T>)[];
   protected hasOnlyStep: boolean;
@@ -62,8 +63,13 @@ export class TestSuite<T> {
     this.steps = [];
     this.hasOnlyStep = false;
 
-    const suite: TestSuite<T> = describe.suite ??
-      TestSuite.current as TestSuite<T>;
+    const suite = describe.suite ?? TestSuite.current?.symbol;
+    if (suite && !TestSuite.suites.has(suite)) {
+      throw new Error("suite symbol does not represent a test suite");
+    }
+    this.symbol = Symbol();
+    TestSuite.suites.set(this.symbol, this);
+    const testSuite = suite && TestSuite.suites.get(suite);
 
     const { fn } = describe;
     if (fn) {
@@ -76,8 +82,8 @@ export class TestSuite<T> {
       }
     }
 
-    if (suite) {
-      TestSuite.addStep(suite, this);
+    if (testSuite) {
+      TestSuite.addStep(testSuite, this);
     } else {
       const {
         name,
@@ -103,7 +109,7 @@ export class TestSuite<T> {
             await this.describe.beforeAll(context);
           }
           try {
-            TestSuite.active.push(this);
+            TestSuite.active.push(this.symbol);
             await TestSuite.run(this, context, t);
           } finally {
             TestSuite.active.pop();
@@ -122,13 +128,16 @@ export class TestSuite<T> {
   /** If a test has been registered yet. Block adding global hooks if a test has been registered. */
   static started = false;
 
+  /** A map of all test suites by symbol. */
+  // deno-lint-ignore no-explicit-any
+  static suites = new Map<symbol, TestSuite<any>>();
+
   /** The current test suite being registered. */
   // deno-lint-ignore no-explicit-any
   static current: TestSuite<any> | null = null;
 
   /** The stack of tests that are actively running. */
-  // deno-lint-ignore no-explicit-any
-  static active: TestSuite<any>[] = [];
+  static active: symbol[] = [];
 
   /** This is used internally for testing this module. */
   static reset(): void {
@@ -240,7 +249,7 @@ export class TestSuite<T> {
               await step.describe.beforeAll(context);
             }
             try {
-              TestSuite.active.push(step);
+              TestSuite.active.push(step.symbol);
               await TestSuite.run(step, context, t);
             } finally {
               TestSuite.active.pop();
@@ -265,17 +274,18 @@ export class TestSuite<T> {
     context: T,
     activeIndex = 0,
   ) {
-    const suite: TestSuite<T> | undefined = TestSuite.active[activeIndex];
-    if (suite) {
+    const suite = TestSuite.active[activeIndex];
+    const testSuite = suite && TestSuite.suites.get(suite);
+    if (testSuite) {
       context = { ...context };
-      if (suite.describe.beforeEach) {
-        await suite.describe.beforeEach(context);
+      if (testSuite.describe.beforeEach) {
+        await testSuite.describe.beforeEach(context);
       }
       try {
         await TestSuite.runTest(fn, context, activeIndex + 1);
       } finally {
-        if (suite.describe.afterEach) {
-          await suite.describe.afterEach(context);
+        if (testSuite.describe.afterEach) {
+          await testSuite.describe.afterEach(context);
         }
       }
     } else {

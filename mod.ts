@@ -6,8 +6,4 @@ export {
   describe,
   it,
 } from "./describe.ts";
-export type {
-  DescribeDefinition,
-  ItDefinition,
-  TestSuite,
-} from "./describe.ts";
+export type { DescribeDefinition, ItDefinition } from "./describe.ts";
