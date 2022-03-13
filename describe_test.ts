@@ -80,21 +80,21 @@ Deno.test("global", async (t) => {
 
   function beforeAllFns() {
     return {
-      beforeAllFn: spy(async (context: GlobalContext) => {
+      beforeAllFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        context.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+        this.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
       }),
-      afterAllFn: spy(async ({ allTimer }: GlobalContext) => {
+      afterAllFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        clearTimeout(allTimer);
+        clearTimeout(this.allTimer);
       }),
-      beforeEachFn: spy(async (context: GlobalContext) => {
+      beforeEachFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        context.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+        this.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
       }),
-      afterEachFn: spy(async ({ eachTimer }: GlobalContext) => {
+      afterEachFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        clearTimeout(eachTimer);
+        clearTimeout(this.eachTimer);
       }),
     };
   }
@@ -136,16 +136,16 @@ Deno.test("global", async (t) => {
 
     let fn = fns[0];
     assertSpyCall(fn, 0, {
-      self: undefined,
-      args: [{ allTimer: 1, eachTimer: 2 }],
+      self: { allTimer: 1, eachTimer: 2 },
+      args: [],
       returned: undefined,
     });
     assertSpyCalls(fn, 1);
 
     fn = fns[1];
     assertSpyCall(fn, 0, {
-      self: undefined,
-      args: [{ allTimer: 1, eachTimer: 3 }],
+      self: { allTimer: 1, eachTimer: 3 },
+      args: [],
       returned: undefined,
     });
     assertSpyCalls(fn, 1);
@@ -184,8 +184,8 @@ Deno.test("global", async (t) => {
         assertEquals(await result, undefined);
         assertSpyCalls(context.spies.step, 0);
         assertSpyCall(fn, 0, {
-          self: undefined,
-          args: [{}],
+          self: {},
+          args: [],
           returned: undefined,
         });
       } finally {
@@ -257,8 +257,8 @@ Deno.test("global", async (t) => {
     await t.step("signature 4", async () =>
       await assertMinimumOptions((fn) => {
         assertEquals(
-          it(function example() {
-            fn.apply(undefined, Array.from(arguments));
+          it(function example(this: void, ...args) {
+            fn.apply(this, args);
           }),
           undefined,
         );
@@ -311,8 +311,8 @@ Deno.test("global", async (t) => {
         async () =>
           await assertMinimumOptions((fn) => {
             assertEquals(
-              it({}, function example() {
-                fn.apply(undefined, Array.from(arguments));
+              it({}, function example(this: void, ...args) {
+                fn.apply(this, args);
               }),
               undefined,
             );
@@ -324,8 +324,8 @@ Deno.test("global", async (t) => {
           assertEquals(
             it({
               ...baseOptions,
-            }, function example() {
-              fn.apply(undefined, Array.from(arguments));
+            }, function example(this: void, ...args) {
+              fn.apply(this, args);
             }),
             undefined,
           );
@@ -401,8 +401,8 @@ Deno.test("global", async (t) => {
         async () =>
           await assertMinimumOptions((fn) => {
             assertEquals(
-              it.only(function example() {
-                fn.apply(undefined, Array.from(arguments));
+              it.only(function example(this: void, ...args) {
+                fn.apply(this, args);
               }),
               undefined,
             );
@@ -456,8 +456,8 @@ Deno.test("global", async (t) => {
           async () =>
             await assertMinimumOptions((fn) => {
               assertEquals(
-                it.only({}, function example() {
-                  fn.apply(undefined, Array.from(arguments));
+                it.only({}, function example(this: void, ...args) {
+                  fn.apply(this, args);
                 }),
                 undefined,
               );
@@ -469,8 +469,8 @@ Deno.test("global", async (t) => {
             assertEquals(
               it.only({
                 ...baseOptions,
-              }, function example() {
-                fn.apply(undefined, Array.from(arguments));
+              }, function example(this: void, ...args) {
+                fn.apply(this, args);
               }),
               undefined,
             );
@@ -547,8 +547,8 @@ Deno.test("global", async (t) => {
         async () =>
           await assertMinimumOptions((fn) => {
             assertEquals(
-              it.ignore(function example() {
-                fn.apply(undefined, Array.from(arguments));
+              it.ignore(function example(this: void, ...args) {
+                fn.apply(this, args);
               }),
               undefined,
             );
@@ -602,8 +602,8 @@ Deno.test("global", async (t) => {
           async () =>
             await assertMinimumOptions((fn) => {
               assertEquals(
-                it.ignore({}, function example() {
-                  fn.apply(undefined, Array.from(arguments));
+                it.ignore({}, function example(this: void, ...args) {
+                  fn.apply(this, args);
                 }),
                 undefined,
               );
@@ -615,8 +615,8 @@ Deno.test("global", async (t) => {
             assertEquals(
               it.ignore({
                 ...baseOptions,
-              }, function example() {
-                fn.apply(undefined, Array.from(arguments));
+              }, function example(this: void, ...args) {
+                fn.apply(this, args);
               }),
               undefined,
             );
@@ -657,15 +657,15 @@ Deno.test("global", async (t) => {
 
         let fn = fns[0];
         assertSpyCall(fn, 0, {
-          self: undefined,
-          args: [{}],
+          self: {},
+          args: [],
           returned: undefined,
         });
 
         fn = fns[1];
         assertSpyCall(fn, 0, {
-          self: undefined,
-          args: [{}],
+          self: {},
+          args: [],
           returned: undefined,
         });
         assertSpyCalls(fn, 1);
@@ -1264,8 +1264,8 @@ Deno.test("global", async (t) => {
 
           fn = fns[1];
           assertSpyCall(fn, 0, {
-            self: undefined,
-            args: [{}],
+            self: {},
+            args: [],
             returned: undefined,
           });
           assertSpyCalls(fn, 1);
@@ -1365,16 +1365,16 @@ Deno.test("global", async (t) => {
 
         let fn = fns[0];
         assertSpyCall(fn, 0, {
-          self: undefined,
-          args: [{ allTimer: 1, eachTimer: 2 }],
+          self: { allTimer: 1, eachTimer: 2 },
+          args: [],
           returned: undefined,
         });
         assertSpyCalls(fn, 1);
 
         fn = fns[1];
         assertSpyCall(fn, 0, {
-          self: undefined,
-          args: [{ allTimer: 1, eachTimer: 3 }],
+          self: { allTimer: 1, eachTimer: 3 },
+          args: [],
           returned: undefined,
         });
         assertSpyCalls(fn, 1);
@@ -1479,16 +1479,16 @@ Deno.test("global", async (t) => {
 
           let fn = fns[0];
           assertSpyCall(fn, 0, {
-            self: undefined,
-            args: [{ allTimer: 1, eachTimer: 2 }],
+            self: { allTimer: 1, eachTimer: 2 },
+            args: [],
             returned: undefined,
           });
           assertSpyCalls(fn, 1);
 
           fn = fns[1];
           assertSpyCall(fn, 0, {
-            self: undefined,
-            args: [{ allTimer: 1, eachTimer: 3 }],
+            self: { allTimer: 1, eachTimer: 3 },
+            args: [],
             returned: undefined,
           });
           assertSpyCalls(fn, 1);
@@ -1513,30 +1513,30 @@ Deno.test("global", async (t) => {
             fns = [spy(), spy()],
             { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } =
               beforeAllFns(),
-            beforeAllFnNested = spy(async (context: NestedContext) => {
+            beforeAllFnNested = spy(async function (this: NestedContext) {
               await Promise.resolve();
-              context.allTimerNested = setTimeout(
+              this.allTimerNested = setTimeout(
                 () => {},
                 Number.MAX_SAFE_INTEGER,
               );
             }),
             afterAllFnNested = spy(
-              async ({ allTimerNested }: NestedContext) => {
+              async function (this: NestedContext) {
                 await Promise.resolve();
-                clearTimeout(allTimerNested);
+                clearTimeout(this.allTimerNested);
               },
             ),
-            beforeEachFnNested = spy(async (context: NestedContext) => {
+            beforeEachFnNested = spy(async function (this: NestedContext) {
               await Promise.resolve();
-              context.eachTimerNested = setTimeout(
+              this.eachTimerNested = setTimeout(
                 () => {},
                 Number.MAX_SAFE_INTEGER,
               );
             }),
             afterEachFnNested = spy(
-              async ({ eachTimerNested }: NestedContext) => {
+              async function (this: NestedContext) {
                 await Promise.resolve();
-                clearTimeout(eachTimerNested);
+                clearTimeout(this.eachTimerNested);
               },
             );
 
@@ -1586,26 +1586,26 @@ Deno.test("global", async (t) => {
 
           let fn = fns[0];
           assertSpyCall(fn, 0, {
-            self: undefined,
-            args: [{
+            self: {
               allTimer: 1,
               allTimerNested: 2,
               eachTimer: 3,
               eachTimerNested: 4,
-            }],
+            },
+            args: [],
             returned: undefined,
           });
           assertSpyCalls(fn, 1);
 
           fn = fns[1];
           assertSpyCall(fn, 0, {
-            self: undefined,
-            args: [{
+            self: {
               allTimer: 1,
               allTimerNested: 2,
               eachTimer: 5,
               eachTimerNested: 6,
-            }],
+            },
+            args: [],
             returned: undefined,
           });
           assertSpyCalls(fn, 1);

@@ -16,21 +16,21 @@ type ItArgs<T> =
   ]
   | [
     name: string,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
-  | [fn: (context: T) => void | Promise<void>]
+  | [fn: (this: T) => void | Promise<void>]
   | [
     name: string,
     options: Omit<ItDefinition<T>, "fn" | "name">,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
   | [
     options: Omit<ItDefinition<T>, "fn">,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
   | [
     options: Omit<ItDefinition<T>, "fn" | "name">,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
   | [
     suite: TestSuite<T>,
@@ -40,27 +40,27 @@ type ItArgs<T> =
   | [
     suite: TestSuite<T>,
     name: string,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
   | [
     suite: TestSuite<T>,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
   | [
     suite: TestSuite<T>,
     name: string,
     options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
   | [
     suite: TestSuite<T>,
     options: Omit<ItDefinition<T>, "fn" | "suite">,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ]
   | [
     suite: TestSuite<T>,
     options: Omit<ItDefinition<T>, "fn" | "name" | "suite">,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ];
 
 /** Generates an ItDefinition from ItArgs. */
@@ -165,9 +165,9 @@ export function it<T>(...args: ItArgs<T>): void {
       sanitizeExit,
       sanitizeOps,
       sanitizeResources,
-      fn: async () => {
+      async fn() {
         if (!TestSuiteInternal.running) TestSuiteInternal.running = true;
-        await fn!({} as T);
+        await fn.call({} as T);
       },
     });
   }
@@ -191,7 +191,7 @@ it.ignore = function itIgnore<T>(...args: ItArgs<T>): void {
 
 function addHook<T>(
   name: HookNames,
-  fn: (context: T) => void | Promise<void>,
+  fn: (this: T) => void | Promise<void>,
 ): void {
   if (!TestSuiteInternal.current) {
     if (TestSuiteInternal.started) {
@@ -210,28 +210,28 @@ function addHook<T>(
 
 /** Run some shared setup before all of the tests in the suite. */
 export function beforeAll<T>(
-  fn: (context: T) => void | Promise<void>,
+  fn: (this: T) => void | Promise<void>,
 ): void {
   addHook("beforeAll", fn);
 }
 
 /** Run some shared teardown after all of the tests in the suite. */
 export function afterAll<T>(
-  fn: (context: T) => void | Promise<void>,
+  fn: (this: T) => void | Promise<void>,
 ): void {
   addHook("afterAll", fn);
 }
 
 /** Run some shared setup before each test in the suite. */
 export function beforeEach<T>(
-  fn: (context: T) => void | Promise<void>,
+  fn: (this: T) => void | Promise<void>,
 ): void {
   addHook("beforeEach", fn);
 }
 
 /** Run some shared teardown after each test in the suite. */
 export function afterEach<T>(
-  fn: (context: T) => void | Promise<void>,
+  fn: (this: T) => void | Promise<void>,
 ): void {
   addHook("afterEach", fn);
 }

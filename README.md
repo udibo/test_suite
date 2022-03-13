@@ -1,7 +1,7 @@
 # Test Suite
 
-[![version](https://img.shields.io/badge/release-0.12.0-success)](https://deno.land/x/test_suite@0.12.0)
-[![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/test_suite@0.12.0/mod.ts)
+[![version](https://img.shields.io/badge/release-0.13.0-success)](https://deno.land/x/test_suite@0.13.0)
+[![deno doc](https://doc.deno.land/badge.svg)](https://doc.deno.land/https/deno.land/x/test_suite@0.13.0/mod.ts)
 [![CI](https://github.com/udibo/test_suite/workflows/CI/badge.svg)](https://github.com/udibo/test_suite/actions?query=workflow%3ACI)
 [![codecov](https://codecov.io/gh/udibo/test_suite/branch/main/graph/badge.svg?token=EFKGY72AAV)](https://codecov.io/gh/udibo/test_suite)
 [![license](https://img.shields.io/github/license/udibo/test_suite)](https://github.com/udibo/test_suite/blob/master/LICENSE)
@@ -26,12 +26,12 @@ also be imported directly from GitHub using raw content URLs.
 
 ```ts
 // Import from Deno's third party module registry
-import { describe, it } from "https://deno.land/x/test_suite@0.12.0/mod.ts";
+import { describe, it } from "https://deno.land/x/test_suite@0.13.0/mod.ts";
 // Import from GitHub
 import {
   describe,
   it,
-} from "https://raw.githubusercontent.com/udibo/test_suite/0.12.0/mod.ts";
+} from "https://raw.githubusercontent.com/udibo/test_suite/0.13.0/mod.ts";
 ```
 
 ## Usage
@@ -44,7 +44,9 @@ specifically set them.
 The beforeAll and afterAll hook options can be used to do something before and
 after all the tests in the suite run. If you would like to set values for all
 tests within the suite, you can create a context interface that defines all the
-values available to the tests that are defined in the beforeAll function.
+values available to the tests that are defined in the beforeAll function using
+the this argument. An example of this can be found in the section for
+[flat test grouping](#flat-test-grouping).
 
 The beforeEach and afterEach hook options are similar to beforeAll and afterAll
 except they are called before and after each individual test.
@@ -52,7 +54,7 @@ except they are called before and after each individual test.
 Below are some examples of how to use `describe` and `it` in tests.
 
 See
-[deno docs](https://doc.deno.land/https/deno.land/x/test_suite@0.12.0/mod.ts)
+[deno docs](https://doc.deno.land/https/deno.land/x/test_suite@0.13.0/mod.ts)
 for more information.
 
 ### Nested test grouping
@@ -65,13 +67,13 @@ import {
   beforeEach,
   describe,
   it,
-} from "https://deno.land/x/test_suite@0.12.0/mod.ts";
-import { assertEquals } from "https://deno.land/std@0.128.0/testing/asserts.ts";
+} from "https://deno.land/x/test_suite@0.13.0/mod.ts";
+import { assertEquals } from "https://deno.land/std@0.129.0/testing/asserts.ts";
 import {
   getUser,
   resetUsers,
   User,
-} from "https://deno.land/x/test_suite@0.12.0/examples/user.ts";
+} from "https://deno.land/x/test_suite@0.13.0/examples/user.ts";
 
 describe("user describe", () => {
   let user: User;
@@ -129,13 +131,13 @@ test result: ok. 1 passed (5 steps); 0 failed; 0 ignored; 0 measured; 0 filtered
 The example below can be found [here](examples/user_flat_test.ts).
 
 ```ts
-import { describe, it } from "https://deno.land/x/test_suite@0.12.0/mod.ts";
-import { assertEquals } from "https://deno.land/std@0.128.0/testing/asserts.ts";
+import { describe, it } from "https://deno.land/x/test_suite@0.13.0/mod.ts";
+import { assertEquals } from "https://deno.land/std@0.129.0/testing/asserts.ts";
 import {
   getUser,
   resetUsers,
   User,
-} from "https://deno.land/x/test_suite@0.12.0/examples/user.ts";
+} from "https://deno.land/x/test_suite@0.13.0/examples/user.ts";
 
 interface UserContext {
   user: User;
@@ -143,8 +145,8 @@ interface UserContext {
 
 const userSuite = describe({
   name: "user",
-  beforeEach(context: UserContext) {
-    context.user = new User("Kyle June");
+  beforeEach(this: UserContext) {
+    this.user = new User("Kyle June");
   },
   afterEach() {
     resetUsers();
@@ -165,12 +167,12 @@ it(getUserSuite, "user does not exist", () => {
   assertEquals(getUser("John Doe"), undefined);
 });
 
-it(getUserSuite, "user exists", (context: UserContext) => {
-  assertEquals(getUser("Kyle June"), context.user);
+it(getUserSuite, "user exists", function (this: UserContext) {
+  assertEquals(getUser("Kyle June"), this.user);
 });
 
-it(userSuite, "resetUsers", (context: UserContext) => {
-  assertEquals(getUser("Kyle June"), context.user);
+it(userSuite, "resetUsers", function (this: UserContext) {
+  assertEquals(getUser("Kyle June"), this.user);
   resetUsers();
   assertEquals(getUser("Kyle June"), undefined);
 });
