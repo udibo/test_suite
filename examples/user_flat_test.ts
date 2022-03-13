@@ -8,8 +8,8 @@ interface UserContext {
 
 const userSuite = describe({
   name: "user",
-  beforeEach(context: UserContext) {
-    context.user = new User("Kyle June");
+  beforeEach(this: UserContext) {
+    this.user = new User("Kyle June");
   },
   afterEach() {
     resetUsers();
@@ -30,12 +30,12 @@ it(getUserSuite, "user does not exist", () => {
   assertEquals(getUser("John Doe"), undefined);
 });
 
-it(getUserSuite, "user exists", (context: UserContext) => {
-  assertEquals(getUser("Kyle June"), context.user);
+it(getUserSuite, "user exists", function (this: UserContext) {
+  assertEquals(getUser("Kyle June"), this.user);
 });
 
-it(userSuite, "resetUsers", (context: UserContext) => {
-  assertEquals(getUser("Kyle June"), context.user);
+it(userSuite, "resetUsers", function (this: UserContext) {
+  assertEquals(getUser("Kyle June"), this.user);
   resetUsers();
   assertEquals(getUser("Kyle June"), undefined);
 });

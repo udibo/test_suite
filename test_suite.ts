@@ -8,18 +8,18 @@ export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
    */
   suite?: TestSuite<T>;
   /** Run some shared setup before all of the tests in the suite. */
-  beforeAll?: (context: T) => void | Promise<void>;
+  beforeAll?: (this: T) => void | Promise<void>;
   /** Run some shared teardown after all of the tests in the suite. */
-  afterAll?: (context: T) => void | Promise<void>;
+  afterAll?: (this: T) => void | Promise<void>;
   /** Run some shared setup before each test in the suite. */
-  beforeEach?: (context: T) => void | Promise<void>;
+  beforeEach?: (this: T) => void | Promise<void>;
   /** Run some shared teardown after each test in the suite. */
-  afterEach?: (context: T) => void | Promise<void>;
+  afterEach?: (this: T) => void | Promise<void>;
 }
 
 /** The options for creating an individual test case with the it function. */
 export interface ItDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
-  fn: (context: T) => void | Promise<void>;
+  fn: (this: T) => void | Promise<void>;
   /**
    * The `describe` function returns a `TestSuite` representing the group of tests.
    * If `it` is called within a `describe` calls `fn`, the suite will default to that parent `describe` calls returned `TestSuite`.
@@ -115,7 +115,7 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
           if (!TestSuiteInternal.running) TestSuiteInternal.running = true;
           const context = {} as T;
           if (this.describe.beforeAll) {
-            await this.describe.beforeAll(context);
+            await this.describe.beforeAll.call(context);
           }
           try {
             TestSuiteInternal.active.push(this.symbol);
@@ -123,7 +123,7 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
           } finally {
             TestSuiteInternal.active.pop();
             if (this.describe.afterAll) {
-              await this.describe.afterAll(context);
+              await this.describe.afterAll.call(context);
             }
           }
         },
@@ -215,7 +215,7 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
   static setHook<T>(
     suite: TestSuiteInternal<T>,
     name: HookNames,
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
   ): void {
     if (suite.describe[name]) {
       throw new Error(`${name} hook already set for test suite`);
@@ -255,7 +255,7 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
           context = { ...context };
           if (step instanceof TestSuiteInternal) {
             if (step.describe.beforeAll) {
-              await step.describe.beforeAll(context);
+              await step.describe.beforeAll.call(context);
             }
             try {
               TestSuiteInternal.active.push(step.symbol);
@@ -263,7 +263,7 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
             } finally {
               TestSuiteInternal.active.pop();
               if (step.describe.afterAll) {
-                await step.describe.afterAll(context);
+                await step.describe.afterAll.call(context);
               }
             }
           } else {
@@ -279,7 +279,7 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
   }
 
   static async runTest<T>(
-    fn: (context: T) => void | Promise<void>,
+    fn: (this: T) => void | Promise<void>,
     context: T,
     activeIndex = 0,
   ) {
@@ -288,17 +288,17 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
     if (testSuite) {
       context = { ...context };
       if (testSuite.describe.beforeEach) {
-        await testSuite.describe.beforeEach(context);
+        await testSuite.describe.beforeEach.call(context);
       }
       try {
         await TestSuiteInternal.runTest(fn, context, activeIndex + 1);
       } finally {
         if (testSuite.describe.afterEach) {
-          await testSuite.describe.afterEach(context);
+          await testSuite.describe.afterEach.call(context);
         }
       }
     } else {
-      await fn(context);
+      await fn.call(context);
     }
   }
 }
