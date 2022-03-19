@@ -13,14 +13,7 @@ import {
   it,
 } from "./describe.ts";
 import { TestSuiteInternal } from "./test_suite.ts";
-import {
-  assertSpyCall,
-  assertSpyCalls,
-  FakeTime,
-  Spy,
-  spy,
-  stub,
-} from "./test_deps.ts";
+import { assertSpyCall, assertSpyCalls, Spy, spy, stub } from "./test_deps.ts";
 
 Deno.test("global", async (t) => {
   class TestContext implements Deno.TestContext {
@@ -78,32 +71,37 @@ Deno.test("global", async (t) => {
     eachTimer: number;
   }
 
-  function beforeAllFns() {
+  let timerIdx = 1;
+  const timers = new Map<number, number>();
+  function hookFns() {
+    timerIdx = 1;
+    timers.clear();
     return {
       beforeAllFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        this.allTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+        this.allTimer = timerIdx++;
+        timers.set(this.allTimer, setTimeout(() => {}, 10000));
       }),
       afterAllFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        clearTimeout(this.allTimer);
+        clearTimeout(timers.get(this.allTimer));
       }),
       beforeEachFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        this.eachTimer = setTimeout(() => {}, Number.MAX_SAFE_INTEGER);
+        this.eachTimer = timerIdx++;
+        timers.set(this.eachTimer, setTimeout(() => {}, 10000));
       }),
       afterEachFn: spy(async function (this: GlobalContext) {
         await Promise.resolve();
-        clearTimeout(this.eachTimer);
+        clearTimeout(timers.get(this.eachTimer));
       }),
     };
   }
 
   await t.step("global hooks", async () => {
     const test = stub(Deno, "test"),
-      time = new FakeTime(),
       fns = [spy(), spy()],
-      { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } = beforeAllFns();
+      { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } = hookFns();
 
     try {
       beforeAll(beforeAllFn);
@@ -131,7 +129,6 @@ Deno.test("global", async (t) => {
     } finally {
       TestSuiteInternal.reset();
       test.restore();
-      time.restore();
     }
 
     let fn = fns[0];
@@ -1336,10 +1333,8 @@ Deno.test("global", async (t) => {
         ) => void,
       ) {
         const test = stub(Deno, "test"),
-          time = new FakeTime(),
           fns = [spy(), spy()],
-          { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } =
-            beforeAllFns();
+          { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } = hookFns();
 
         try {
           cb({ beforeAllFn, afterAllFn, beforeEachFn, afterEachFn, fns });
@@ -1360,7 +1355,6 @@ Deno.test("global", async (t) => {
         } finally {
           TestSuiteInternal.reset();
           test.restore();
-          time.restore();
         }
 
         let fn = fns[0];
@@ -1434,10 +1428,8 @@ Deno.test("global", async (t) => {
         "nested",
         async () => {
           const test = stub(Deno, "test"),
-            time = new FakeTime(),
             fns = [spy(), spy()],
-            { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } =
-              beforeAllFns();
+            { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } = hookFns();
 
           try {
             describe("example", () => {
@@ -1474,7 +1466,6 @@ Deno.test("global", async (t) => {
           } finally {
             TestSuiteInternal.reset();
             test.restore();
-            time.restore();
           }
 
           let fn = fns[0];
@@ -1509,34 +1500,34 @@ Deno.test("global", async (t) => {
         "nested with hooks",
         async () => {
           const test = stub(Deno, "test"),
-            time = new FakeTime(),
             fns = [spy(), spy()],
-            { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } =
-              beforeAllFns(),
+            { beforeAllFn, afterAllFn, beforeEachFn, afterEachFn } = hookFns(),
             beforeAllFnNested = spy(async function (this: NestedContext) {
               await Promise.resolve();
-              this.allTimerNested = setTimeout(
-                () => {},
-                Number.MAX_SAFE_INTEGER,
+              this.allTimerNested = timerIdx++;
+              timers.set(
+                this.allTimerNested,
+                setTimeout(() => {}, 10000),
               );
             }),
             afterAllFnNested = spy(
               async function (this: NestedContext) {
                 await Promise.resolve();
-                clearTimeout(this.allTimerNested);
+                clearTimeout(timers.get(this.allTimerNested));
               },
             ),
             beforeEachFnNested = spy(async function (this: NestedContext) {
               await Promise.resolve();
-              this.eachTimerNested = setTimeout(
-                () => {},
-                Number.MAX_SAFE_INTEGER,
+              this.eachTimerNested = timerIdx++;
+              timers.set(
+                this.eachTimerNested,
+                setTimeout(() => {}, 10000),
               );
             }),
             afterEachFnNested = spy(
               async function (this: NestedContext) {
                 await Promise.resolve();
-                clearTimeout(this.eachTimerNested);
+                clearTimeout(timers.get(this.eachTimerNested));
               },
             );
 
@@ -1581,7 +1572,6 @@ Deno.test("global", async (t) => {
           } finally {
             TestSuiteInternal.reset();
             test.restore();
-            time.restore();
           }
 
           let fn = fns[0];
