@@ -68,7 +68,7 @@ import {
   describe,
   it,
 } from "https://deno.land/x/test_suite@0.14.0/mod.ts";
-import { assertEquals } from "https://deno.land/std@0.129.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.130.0/testing/asserts.ts";
 import {
   getUser,
   resetUsers,
@@ -132,7 +132,7 @@ The example below can be found [here](examples/user_flat_test.ts).
 
 ```ts
 import { describe, it } from "https://deno.land/x/test_suite@0.14.0/mod.ts";
-import { assertEquals } from "https://deno.land/std@0.129.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.130.0/testing/asserts.ts";
 import {
   getUser,
   resetUsers,
