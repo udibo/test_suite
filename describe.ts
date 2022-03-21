@@ -8,7 +8,7 @@ import {
 export type { DescribeDefinition, ItDefinition, TestSuite };
 
 /** The arguments for an ItFunction. */
-type ItArgs<T> =
+export type ItArgs<T> =
   | [options: ItDefinition<T>]
   | [
     name: string,
@@ -237,7 +237,7 @@ export function afterEach<T>(
 }
 
 /** The arguments for a DescribeFunction. */
-type DescribeArgs<T> =
+export type DescribeArgs<T> =
   | [options: DescribeDefinition<T>]
   | [name: string]
   | [

@@ -8,13 +8,21 @@ export interface DescribeDefinition<T> extends Omit<Deno.TestDefinition, "fn"> {
    */
   suite?: TestSuite<T>;
   /** Run some shared setup before all of the tests in the suite. */
-  beforeAll?: (this: T) => void | Promise<void>;
+  beforeAll?:
+    | ((this: T) => void | Promise<void>)
+    | ((this: T) => void | Promise<void>)[];
   /** Run some shared teardown after all of the tests in the suite. */
-  afterAll?: (this: T) => void | Promise<void>;
+  afterAll?:
+    | ((this: T) => void | Promise<void>)
+    | ((this: T) => void | Promise<void>)[];
   /** Run some shared setup before each test in the suite. */
-  beforeEach?: (this: T) => void | Promise<void>;
+  beforeEach?:
+    | ((this: T) => void | Promise<void>)
+    | ((this: T) => void | Promise<void>)[];
   /** Run some shared teardown after each test in the suite. */
-  afterEach?: (this: T) => void | Promise<void>;
+  afterEach?:
+    | ((this: T) => void | Promise<void>)
+    | ((this: T) => void | Promise<void>)[];
 }
 
 /** The options for creating an individual test case with the it function. */
@@ -114,16 +122,26 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
         fn: async (t) => {
           if (!TestSuiteInternal.running) TestSuiteInternal.running = true;
           const context = {} as T;
-          if (this.describe.beforeAll) {
-            await this.describe.beforeAll.call(context);
+          const { beforeAll } = this.describe;
+          if (typeof beforeAll === "function") {
+            await beforeAll.call(context);
+          } else if (beforeAll) {
+            for (const hook of beforeAll) {
+              await hook.call(context);
+            }
           }
           try {
             TestSuiteInternal.active.push(this.symbol);
             await TestSuiteInternal.run(this, context, t);
           } finally {
             TestSuiteInternal.active.pop();
-            if (this.describe.afterAll) {
-              await this.describe.afterAll.call(context);
+            const { afterAll } = this.describe;
+            if (typeof afterAll === "function") {
+              await afterAll.call(context);
+            } else if (afterAll) {
+              for (const hook of afterAll) {
+                await hook.call(context);
+              }
             }
           }
         },
@@ -218,9 +236,15 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
     fn: (this: T) => void | Promise<void>,
   ): void {
     if (suite.describe[name]) {
-      throw new Error(`${name} hook already set for test suite`);
+      if (typeof suite.describe[name] === "function") {
+        suite.describe[name] = [
+          suite.describe[name] as ((this: T) => void | Promise<void>),
+        ];
+      }
+      (suite.describe[name] as ((this: T) => void | Promise<void>)[]).push(fn);
+    } else {
+      suite.describe[name] = fn;
     }
-    suite.describe[name] = fn;
   }
 
   /** This is used internally to run all steps for a test suite. */
@@ -254,16 +278,26 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
           }
           context = { ...context };
           if (step instanceof TestSuiteInternal) {
-            if (step.describe.beforeAll) {
-              await step.describe.beforeAll.call(context);
+            const { beforeAll } = step.describe;
+            if (typeof beforeAll === "function") {
+              await beforeAll.call(context);
+            } else if (beforeAll) {
+              for (const hook of beforeAll) {
+                await hook.call(context);
+              }
             }
             try {
               TestSuiteInternal.active.push(step.symbol);
               await TestSuiteInternal.run(step, context, t);
             } finally {
               TestSuiteInternal.active.pop();
-              if (step.describe.afterAll) {
-                await step.describe.afterAll.call(context);
+              const { afterAll } = step.describe;
+              if (typeof afterAll === "function") {
+                await afterAll.call(context);
+              } else if (afterAll) {
+                for (const hook of afterAll) {
+                  await hook.call(context);
+                }
               }
             }
           } else {
@@ -287,14 +321,24 @@ export class TestSuiteInternal<T> implements TestSuite<T> {
     const testSuite = suite && TestSuiteInternal.suites.get(suite);
     if (testSuite) {
       context = { ...context };
-      if (testSuite.describe.beforeEach) {
-        await testSuite.describe.beforeEach.call(context);
+      const { beforeEach } = testSuite.describe;
+      if (typeof beforeEach === "function") {
+        await beforeEach.call(context);
+      } else if (beforeEach) {
+        for (const hook of beforeEach) {
+          await hook.call(context);
+        }
       }
       try {
         await TestSuiteInternal.runTest(fn, context, activeIndex + 1);
       } finally {
-        if (testSuite.describe.afterEach) {
-          await testSuite.describe.afterEach.call(context);
+        const { afterEach } = testSuite.describe;
+        if (typeof afterEach === "function") {
+          await afterEach.call(context);
+        } else if (afterEach) {
+          for (const hook of afterEach) {
+            await hook.call(context);
+          }
         }
       }
     } else {
