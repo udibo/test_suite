@@ -116,7 +116,8 @@ Deno.test("global", async (t) => {
       assertSpyCalls(fns[0], 0);
       assertSpyCalls(fns[1], 0);
 
-      const call = assertSpyCall(test, 0);
+      assertSpyCall(test, 0);
+      const call = test.calls[0];
       const options = call.args[0] as Deno.TestDefinition;
       assertEquals(Object.keys(options).sort(), ["fn", "name"]);
       assertEquals(options.name, "global");
@@ -164,7 +165,8 @@ Deno.test("global", async (t) => {
         cb(fn);
 
         assertSpyCalls(fn, 0);
-        const call = assertSpyCall(test, 0);
+        assertSpyCall(test, 0);
+        const call = test.calls[0];
         const options = call.args[0] as Deno.TestDefinition;
         assertEquals(
           Object.keys(options).sort(),
@@ -632,7 +634,8 @@ Deno.test("global", async (t) => {
       try {
         cb(fns);
 
-        const call = assertSpyCall(test, 0);
+        assertSpyCall(test, 0);
+        const call = test.calls[0];
         const options = call.args[0] as Deno.TestDefinition;
         assertEquals(
           Object.keys(options).sort(),
@@ -1237,7 +1240,8 @@ Deno.test("global", async (t) => {
         try {
           cb(fns);
 
-          const call = assertSpyCall(test, 0);
+          assertSpyCall(test, 0);
+          const call = test.calls[0];
           const options = call.args[0] as Deno.TestDefinition;
           assertEquals(
             Object.keys(options).sort(),
@@ -1342,7 +1346,8 @@ Deno.test("global", async (t) => {
           assertSpyCalls(fns[0], 0);
           assertSpyCalls(fns[1], 0);
 
-          const call = assertSpyCall(test, 0);
+          assertSpyCall(test, 0);
+          const call = test.calls[0];
           const options = call.args[0] as Deno.TestDefinition;
           assertEquals(Object.keys(options).sort(), ["fn", "name"]);
           assertEquals(options.name, "example");
@@ -1448,7 +1453,8 @@ Deno.test("global", async (t) => {
             assertSpyCalls(fns[0], 0);
             assertSpyCalls(fns[1], 0);
 
-            const call = assertSpyCall(test, 0);
+            assertSpyCall(test, 0);
+            const call = test.calls[0];
             const options = call.args[0] as Deno.TestDefinition;
             assertEquals(Object.keys(options).sort(), ["fn", "name"]);
             assertEquals(options.name, "example");
@@ -1554,7 +1560,8 @@ Deno.test("global", async (t) => {
             assertSpyCalls(fns[0], 0);
             assertSpyCalls(fns[1], 0);
 
-            const call = assertSpyCall(test, 0);
+            assertSpyCall(test, 0);
+            const call = test.calls[0];
             const options = call.args[0] as Deno.TestDefinition;
             assertEquals(Object.keys(options).sort(), ["fn", "name"]);
             assertEquals(options.name, "example");
