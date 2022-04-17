@@ -130,7 +130,11 @@ export interface it {
   ignore<T>(...args: ItArgs<T>): void;
 }
 
-/** Registers an individual test case. */
+/**
+ * Registers an individual test case.
+ *
+ * @deprecated Use https://deno.land/std/testing/bdd.ts instead.
+ */
 export function it<T>(...args: ItArgs<T>): void {
   if (TestSuiteInternal.running) {
     throw new Error(
@@ -371,7 +375,11 @@ export interface describe {
   ignore<T>(...args: DescribeArgs<T>): TestSuite<T>;
 }
 
-/** Registers a test suite. */
+/**
+ * Registers a test suite.
+ *
+ * @deprecated Use https://deno.land/std/testing/bdd.ts instead.
+ */
 export function describe<T>(
   ...args: DescribeArgs<T>
 ): TestSuite<T> {

@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macOS-latest]
-        deno: [v1.x, canary]
+        deno: [v1.x]
       fail-fast: true
     steps:
       - name: Clone repository
